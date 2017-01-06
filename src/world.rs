@@ -32,7 +32,9 @@ impl World {
                 let shape = nc::shape::Ball::new(radius);
                 nc::shape::ShapeHandle::new(shape)
             },
-            _ => unimplemented!()
+            BodyShape::TriangleSoup(ref trimesh) => {
+                nc::shape::ShapeHandle::new(trimesh.clone())
+            },
         };
 
         let uid = self.bodies.len();
@@ -47,7 +49,9 @@ impl World {
 
         // Check collisions and accumulate forces
         for obj in self.bodies.iter_mut() {
-            obj.force += Vec3::new(0.0, -9.80665, 0.0);
+            if !obj.fixed {
+//                 obj.force += Vec3::new(0.0, -9.80665, 0.0);
+            }
         }
 
         for (uid, obj) in self.bodies.iter_mut().enumerate() {
@@ -68,7 +72,7 @@ impl World {
 
             assert!(!self.bodies[b.data].fixed);
 
-            self.bodies[b.data].position -= contact.normal * contact.depth;
+//             self.bodies[b.data].position -= contact.normal * contact.depth;
         }
     }
 

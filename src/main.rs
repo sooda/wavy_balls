@@ -153,10 +153,15 @@ fn main() {
 
     let mut last_t = sdl_timer.ticks();
 
-    let body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").unwrap()),
+    let mut body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").unwrap()),
                                body::BodyShape::Sphere { radius: 1.0 }, false);
+    body.position.y += 2.5;
     let mut world = world::World::new();
     world.add_body(body);
+
+    let plane = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "plane.obj").unwrap()),
+                                body::BodyShape::from_obj("plane.obj").unwrap(), true);
+    world.add_body(plane);
 
     let texture = texture::load_texture(&display, "eh.png").unwrap();
 
