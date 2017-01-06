@@ -12,9 +12,11 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
         let s = tok.split('/').collect::<Vec<_>>();
         Ok(match s.len() {
             1 => (tok.parse::<isize>().unwrap() - 1, None, None),
-            3 => (s[0].parse::<isize>().unwrap() - 1,
-                  s[1].parse::<isize>().ok().map(|i| i - 1),
-                  s[2].parse::<isize>().ok().map(|i| i - 1)),
+            3 => {
+                (s[0].parse::<isize>().unwrap() - 1,
+                 s[1].parse::<isize>().ok().map(|i| i - 1),
+                 s[2].parse::<isize>().ok().map(|i| i - 1))
+            }
             _ => bail!(ErrorKind::ObjLoadError),
         })
     }
@@ -40,8 +42,7 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
                                      toks[3].parse().unwrap())
                 .normalize());
         } else if toks[0] == "vt" {
-            obj_texcs.push(Pnt2::new(toks[1].parse().unwrap(),
-                                     toks[2].parse().unwrap()))
+            obj_texcs.push(Pnt2::new(toks[1].parse().unwrap(), toks[2].parse().unwrap()))
         } else if toks[0] == "f" {
             let (a, b, c) = (parse_f(toks[1])?, parse_f(toks[2])?, parse_f(toks[3])?);
 
@@ -77,7 +78,9 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
                 let nc = obj_norms[n_i(c.2.unwrap())];
                 n = (na, nb, nc);
             }
-            let texc = (obj_texcs[t_i(a.1.unwrap())], obj_texcs[t_i(b.1.unwrap())], obj_texcs[t_i(c.1.unwrap())]);
+            let texc = (obj_texcs[t_i(a.1.unwrap())],
+                        obj_texcs[t_i(b.1.unwrap())],
+                        obj_texcs[t_i(c.1.unwrap())]);
 
             tris.push(tri.0);
             tris.push(tri.1);
