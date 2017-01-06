@@ -16,6 +16,7 @@ mod body;
 mod world;
 mod mesh;
 mod obj;
+mod texture;
 
 mod errors {
     error_chain! {
@@ -58,8 +59,10 @@ static FRAGMENT_SHADER: &'static str = r#"
 
     in vec2 f_tex_coord;
 
+    uniform sampler2D tex;
+
     void main() {
-        gl_FragColor = vec4(1.0, f_tex_coord.x, f_tex_coord.y, 1.0);
+        gl_FragColor = texture(tex, f_tex_coord);
     }
 "#;
 
@@ -148,6 +151,8 @@ fn main() {
     let mut world = world::World::new();
     world.add_body(body);
 
+    let texture = texture::load_texture(&display, "eh.png").unwrap();
+
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
     'mainloop: loop {
@@ -197,7 +202,8 @@ fn main() {
                 .draw(&mut target,
                       &uniform! {
                       perspective: *projection.as_ref(),
-                      modelview: *modelview.as_ref()
+                      modelview: *modelview.as_ref(),
+                      tex: &texture,
                   },
                       &program)
                 .unwrap();
