@@ -154,7 +154,7 @@ fn main() {
     let mut last_t = sdl_timer.ticks();
 
     let body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").unwrap()),
-                               body::BodyShape::Sphere { radius: 1.0 });
+                               body::BodyShape::Sphere { radius: 1.0 }, false);
     let mut world = world::World::new();
     world.add_body(body);
 

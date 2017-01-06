@@ -33,16 +33,18 @@ pub struct Body {
     pub force: math::Vec3,
     pub mesh: Rc<mesh::Mesh>,
     pub shape: BodyShape,
+    pub fixed: bool,
 }
 
 impl Body {
-    pub fn new(mesh: Rc<mesh::Mesh>, shape: BodyShape) -> Body {
+    pub fn new(mesh: Rc<mesh::Mesh>, shape: BodyShape, fixed: bool) -> Body {
         Body {
             position: math::Vec3::new(0.0, 0.0, 0.0),
             velocity: math::Vec3::new(0.0, 0.0, 0.0),
             force: math::Vec3::new(0.0, 0.0, 0.0),
             mesh: mesh,
             shape: shape,
+            fixed: fixed
         }
     }
 }
