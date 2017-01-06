@@ -11,6 +11,8 @@ extern crate image;
 extern crate nalgebra as na;
 extern crate ncollide as nc;
 
+extern crate inotify;
+
 mod math;
 mod body;
 mod world;
@@ -34,6 +36,10 @@ use glium::Surface;
 use na::{Transformation, ToHomogeneous, Transform, Translation, Norm};
 use math::*;
 use std::rc::Rc;
+
+use inotify::INotify;
+use inotify::ffi::*;
+use std::path::Path;
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -155,7 +161,26 @@ fn main() {
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
+
+    let mut ino = INotify::init().unwrap();
+
+    ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE).unwrap();
+
     'mainloop: loop {
+        let evs = ino.available_events().unwrap();
+
+        if evs.len() > 0 {
+            match load_shader_prog(&display, "test") {
+                Ok(prog) => state.program = prog,
+                Err(bad) => {
+                    println!("sorry: {}", bad);
+                    for e in bad.iter().skip(1) {
+                        println!("because: {}", e);
+                    }
+                }
+            }
+        }
+
         for ev in event_pump.poll_iter() {
             use sdl2::event::Event;
             use sdl2::keyboard::Keycode;

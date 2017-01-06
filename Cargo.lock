@@ -6,6 +6,7 @@ dependencies = [
  "glium 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glium_sdl2 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "inotify 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "nalgebra 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ncollide 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.27.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -320,6 +321,14 @@ dependencies = [
 name = "inflate"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "inotify"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.19 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "itoa"
@@ -915,6 +924,7 @@ dependencies = [
 "checksum glutin 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "06786fae66e7aa8464b3d8d3fb7a7c470f89d62ae511f9613ea7fbbeef61d680"
 "checksum image 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9d62758640802fa9b18d0338fb3a338a09b120df0d0215135e4378ad6eede5dd"
 "checksum inflate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e7e0062d2dc2f17d2f13750d95316ae8a2ff909af0fda957084f5defd87c43bb"
+"checksum inotify 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "887fcc180136e77a85e6a6128579a719027b1bab9b1c38ea4444244fe262c20c"
 "checksum itoa 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ae3088ea4baeceb0284ee9eea42f591226e6beaecf65373e41b38d95a1b8e7a1"
 "checksum jpeg-decoder 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)" = "f5c064189dd32804b645d90406c24c23b5feed62dcf31bf3a97763ff20f5d689"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
