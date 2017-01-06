@@ -23,6 +23,10 @@ mod texture;
 mod errors {
     error_chain! {
         errors {
+            SdlError(t: String) {
+                description("sdl error")
+                display("sdl error: {}", t)
+            }
             ObjLoadError
         }
     }
@@ -118,21 +122,25 @@ fn load_shader_prog<F: glium::backend::Facade>(facade: &F, name: &str) -> Result
     glium::Program::from_source(facade, &vert, &frag, None).chain_err(|| "shader does not compile")
 }
 
-fn main() {
+fn sdl_err(r: String) -> Error {
+    Error::from_kind(ErrorKind::SdlError(r))
+}
+
+fn run() -> Result<()> {
     use glium_sdl2::DisplayBuild;
 
-    let sdl_ctx = sdl2::init().unwrap();
-    let sdl_video = sdl_ctx.video().unwrap();
+    let sdl_ctx = sdl2::init().map_err(sdl_err).chain_err(|| "failed to initialize SDL")?;
+    let sdl_video = sdl_ctx.video().map_err(sdl_err).chain_err(|| "failed to initialize video")?;
     let sdl_glattr = sdl_video.gl_attr();
     sdl_glattr.set_context_profile(sdl2::video::GLProfile::Core);
     sdl_glattr.set_context_version(3, 3);
 
     let display_width = 800;
     let display_height = 600;
-    let display = sdl_video.window("FGJ", display_width, display_height).build_glium().unwrap();
+    let display = sdl_video.window("FGJ", display_width, display_height).build_glium().chain_err(|| "failed to initialize glium context")?;
 
-    let mut event_pump = sdl_ctx.event_pump().unwrap();
-    let mut sdl_timer = sdl_ctx.timer().unwrap();
+    let mut event_pump = sdl_ctx.event_pump().map_err(sdl_err).chain_err(|| "failed to initialize SDL event pump")?;
+    let mut sdl_timer = sdl_ctx.timer().map_err(sdl_err).chain_err(|| "failed to initialize SDL timer")?;
 
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                            3.1416 / 2.0,
@@ -145,32 +153,32 @@ fn main() {
     mesh.push(Vertex { position: [0.0f32, 1.0f32] });
     mesh.push(Vertex { position: [1.0f32, 1.0f32] });
 
-    let buffer = glium::VertexBuffer::new(&display, &mesh).unwrap();
+    let buffer = glium::VertexBuffer::new(&display, &mesh).chain_err(|| "failed to allocate GPU vertex buffer")?;
     let mut state = SampleModel {
         buffer: buffer,
-        program: load_shader_prog(&display, "test").unwrap(),
+        program: load_shader_prog(&display, "test").chain_err(|| "failed to load shader")?
     };
 
     let mut last_t = sdl_timer.ticks();
 
-    let mut body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").unwrap()),
+    let mut body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
                                body::BodyShape::Sphere { radius: 1.0 }, false);
     body.position.y += 2.5;
     let mut world = world::World::new();
     world.add_body(body);
 
-    let plane = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "plane.obj").unwrap()),
+    let plane = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "plane.obj").chain_err(|| "failed to load plane mesh")?),
                                 body::BodyShape::from_obj("plane.obj").unwrap(), true);
     world.add_body(plane);
 
-    let texture = texture::load_texture(&display, "eh.png").unwrap();
+    let texture = texture::load_texture(&display, "eh.png").chain_err(|| "failed to load texture")?;
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
 
-    let mut ino = INotify::init().unwrap();
+    let mut ino = INotify::init().chain_err(|| "failed to initialize inotify")?;
 
-    ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE).unwrap();
+    ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE).chain_err(|| "failed to add inotify watch")?;
 
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
@@ -270,13 +278,24 @@ fn main() {
                       tex: &texture,
                   },
                       &program)
-                .unwrap();
+                .chain_err(|| "failed to draw mesh")?;
         }
 
         render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
 
-        target.finish().unwrap();
+        target.finish().chain_err(|| "failed to finish frame")?;
 
         std::thread::sleep_ms(1);
+    }
+
+    Ok(())
+}
+
+fn main() {
+    if let Err(ref e) = run() {
+        println!("Error: {}", e);
+        for cause in e.iter().skip(1) {
+            println!(".. because: {}", cause);
+        }
     }
 }
