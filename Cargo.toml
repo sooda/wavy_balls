@@ -4,3 +4,8 @@ version = "0.1.0"
 authors = ["Mikko Perttunen <cyndis@kapsi.fi>"]
 
 [dependencies]
+glium_sdl2 = "0.13"
+sdl2 = "0.27"
+glium = "0.15"
+nalgebra = "0.10"
+image = "0.11"
