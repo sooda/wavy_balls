@@ -9,13 +9,14 @@ extern crate error_chain;
 extern crate image;
 
 extern crate nalgebra as na;
+extern crate ncollide as nc;
 
 mod math;
 mod body;
 mod world;
 
 mod errors {
-    error_chain! { }
+    error_chain!{}
 }
 
 use glium::Surface;
