@@ -1,5 +1,6 @@
 use body::Body;
 use nc;
+use std::slice;
 
 enum PhysRole {
     Body(u32),
@@ -41,5 +42,9 @@ impl World {
 
         // Check collisions
 
+    }
+
+    pub fn bodies(&self) -> slice::Iter<Body> {
+        self.bodies.iter()
     }
 }

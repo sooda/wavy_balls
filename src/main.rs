@@ -31,6 +31,7 @@ use std::io::Read;
 use glium::Surface;
 use na::{Transformation, ToHomogeneous, Transform, Translation, Norm};
 use math::*;
+use std::rc::Rc;
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -139,12 +140,12 @@ fn main() {
 
     let mut last_t = sdl_timer.ticks();
 
-    let world = world::World::new();
+    let body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").unwrap()));
+    let mut world = world::World::new();
+    world.add_body(body);
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
-    let mesh = mesh::Mesh::from_obj(&display, "ballo.obj").unwrap();
-
     'mainloop: loop {
         for ev in event_pump.poll_iter() {
             use sdl2::event::Event;
@@ -171,13 +172,16 @@ fn main() {
 
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
-        mesh.draw(&mut target,
-                  &uniform! {
+        for body in world.bodies() {
+            body.mesh
+                .draw(&mut target,
+                      &uniform! {
                       perspective: *projection.as_ref(),
                       modelview: *modelview.as_ref()
                   },
-                  &program)
-            .unwrap();
+                      &program)
+                .unwrap();
+        }
 
         render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
 
