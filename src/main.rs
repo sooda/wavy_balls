@@ -148,9 +148,18 @@ fn main() {
     'mainloop: loop {
         for ev in event_pump.poll_iter() {
             use sdl2::event::Event;
+            use sdl2::keyboard::Keycode;
 
             match ev {
                 Event::Quit { .. } => break 'mainloop,
+                Event::KeyDown { keycode, .. } => {
+                    match keycode {
+                        Some(Keycode::Return) => {
+                            state.program = load_shader_prog(&display, "test");
+                        }
+                        _ => (),
+                    }
+                }
                 _ => (),
             }
         }
