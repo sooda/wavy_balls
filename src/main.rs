@@ -24,6 +24,7 @@ mod errors {
         }
     }
 }
+use errors::*;
 
 use std::fs::File;
 use std::io::Read;
@@ -93,19 +94,19 @@ fn render<S: glium::Surface>(surface: &mut S, state: &SampleModel, time: f32) {
         .unwrap();
 }
 
-fn read_file(name: &str) -> String {
-    let mut f = File::open(name).unwrap();
+fn read_file(name: &str) -> Result<String> {
+    let mut f = File::open(name).chain_err(|| "failed to open file")?;
     let mut s = String::new();
-    f.read_to_string(&mut s).unwrap();
+    f.read_to_string(&mut s).chain_err(|| "failed to read file")?;
 
-    s
+    Ok(s)
 }
 
-fn load_shader_prog<F: glium::backend::Facade>(facade: &F, name: &str) -> glium::Program {
-    let vert = read_file(&("src/".to_owned() + name + ".vert"));
-    let frag = read_file(&("src/".to_owned() + name + ".frag"));
+fn load_shader_prog<F: glium::backend::Facade>(facade: &F, name: &str) -> Result<glium::Program> {
+    let vert = read_file(&("src/".to_owned() + name + ".vert")).chain_err(|| "no vert shader")?;
+    let frag = read_file(&("src/".to_owned() + name + ".frag")).chain_err(|| "no frag shader")?;
 
-    glium::Program::from_source(facade, &vert, &frag, None).unwrap()
+    glium::Program::from_source(facade, &vert, &frag, None).chain_err(|| "shader does not compile")
 }
 
 fn main() {
@@ -138,7 +139,7 @@ fn main() {
     let buffer = glium::VertexBuffer::new(&display, &mesh).unwrap();
     let mut state = SampleModel {
         buffer: buffer,
-        program: load_shader_prog(&display, "test"),
+        program: load_shader_prog(&display, "test").unwrap(),
     };
 
     let mut last_t = sdl_timer.ticks();
@@ -159,7 +160,15 @@ fn main() {
                 Event::KeyDown { keycode, .. } => {
                     match keycode {
                         Some(Keycode::Return) => {
-                            state.program = load_shader_prog(&display, "test");
+                            match load_shader_prog(&display, "test") {
+                                Ok(prog) => state.program = prog,
+                                Err(bad) => {
+                                    println!("sorry: {}", bad);
+                                    for e in bad.iter().skip(1) {
+                                        println!("because: {}", e);
+                                    }
+                                }
+                            }
                         }
                         _ => (),
                     }
