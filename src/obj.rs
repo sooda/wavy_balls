@@ -78,9 +78,16 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
                 let nc = obj_norms[n_i(c.2.unwrap())];
                 n = (na, nb, nc);
             }
-            let texc = (obj_texcs[t_i(a.1.unwrap())],
+            let texc;
+            if a.1.is_none() {
+                texc = (Pnt2::new(0.0, 0.0),
+                        Pnt2::new(0.0, 0.0),
+                        Pnt2::new(0.0, 0.0));
+            } else {
+                texc = (obj_texcs[t_i(a.1.unwrap())],
                         obj_texcs[t_i(b.1.unwrap())],
                         obj_texcs[t_i(c.1.unwrap())]);
+            }
 
             tris.push(tri.0);
             tris.push(tri.1);
