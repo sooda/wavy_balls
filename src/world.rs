@@ -1,6 +1,7 @@
 use body::Body;
 use nc;
 use std::slice;
+use math;
 
 enum PhysRole {
     Body(u32),
@@ -36,11 +37,16 @@ impl World {
 
         self.time += dt;
 
+        // Check collisions and accumulate forces
         for obj in self.bodies.iter_mut() {
-            obj.position += obj.velocity * dt; // euler was a geniose
+            obj.force += math::Vec3::new(0.0, -9.80665, 0.0);
         }
 
-        // Check collisions
+        for obj in self.bodies.iter_mut() {
+            let mass = 1.0;
+            obj.velocity += dt * obj.force / mass;
+            obj.position += dt * obj.velocity; // euler was a geniose
+        }
 
     }
 

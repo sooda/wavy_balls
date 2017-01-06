@@ -46,7 +46,8 @@ impl Mesh {
     }
 
     pub fn from_obj<F: Facade, P: AsRef<Path> + ?Sized>(f: &F, path: &P) -> Result<Mesh> {
-        let (positions, normals, texcoord) = obj::load_obj(path).chain_err(|| "unable to load .obj")?;
+        let (positions, normals, texcoord) =
+            obj::load_obj(path).chain_err(|| "unable to load .obj")?;
 
         Mesh::new(f, positions, normals, texcoord)
     }

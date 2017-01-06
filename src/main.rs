@@ -129,10 +129,6 @@ fn main() {
                                            0.01,
                                            50.0f32)
         .to_matrix();
-    let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 5.0),
-                                     &Pnt3::new(0.0, 0.0, -20.0),
-                                     &Vec3::new(0.0, 1.0, 0.0))
-        .to_homogeneous();
 
     let mut mesh = vec![];
     mesh.push(Vertex { position: [0.0f32, 0.0f32] });
@@ -175,11 +171,19 @@ fn main() {
         let dt = (sdl_timer.ticks() - last_t) as f32 / 1000.0;
         last_t = sdl_timer.ticks();
 
+        // Step the world
+        world.step(dt);
+
         let mut target = display.draw();
 
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
         for body in world.bodies() {
+            let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 20.0),
+                                             &body.position.to_point(),
+                                             &Vec3::new(0.0, 1.0, 0.0))
+                .to_homogeneous();
+
             body.mesh
                 .draw(&mut target,
                       &uniform! {
