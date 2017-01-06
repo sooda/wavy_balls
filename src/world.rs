@@ -12,6 +12,17 @@ pub struct World {
     dt_time_left: f32,
 }
 
+fn collide_dynamic_dynamic(body_a: &mut Body,
+                           body_b: &mut Body,
+                           contact: nc::query::Contact<Pnt3>) {
+}
+
+fn collide_dynamic_fixed(body_a: &mut Body, body_b: &mut Body, contact: nc::query::Contact<Pnt3>) {
+    let velocity_towards_surface = 0f32.max(na::dot(&body_a.velocity, &contact.normal));
+    body_a.velocity -= contact.normal * velocity_towards_surface;
+    body_a.position -= contact.normal * contact.depth;
+}
+
 impl World {
     pub fn new() -> World {
         let mut cw = nc::world::CollisionWorld3::new(0.01, true);
@@ -75,19 +86,33 @@ impl World {
             self.cw.update();
 
             for (mut a, mut b, mut contact) in self.cw.contacts() {
-                if self.bodies[b.data].fixed {
-                    std::mem::swap(&mut a, &mut b);
-                    contact.flip();
+
+                assert!(a.data != b.data);
+
+                // Obtain two mutable references to elements in the same vector
+                let (body_a, body_b) = if a.data < b.data {
+                    let (begin, end) = self.bodies.split_at_mut(b.data);
+                    (&mut begin[a.data], &mut end[0])
+                } else {
+                    let (begin, end) = self.bodies.split_at_mut(a.data);
+                    (&mut begin[b.data], &mut end[0])
+                };
+
+                match (body_a.fixed, body_b.fixed) {
+                    (false, false) => {
+                        collide_dynamic_dynamic(body_a, body_b, contact);
+                    }
+                    (false, true) => {
+                        collide_dynamic_fixed(body_a, body_b, contact);
+                    }
+                    (true, false) => {
+                        contact.flip();
+                        collide_dynamic_fixed(body_b, body_a, contact);
+                    }
+                    (true, true) => {
+                        // fixed-fixed collision not required
+                    }
                 }
-
-                assert!(!self.bodies[b.data].fixed);
-
-                let velocity_towards_surface =
-                    0f32.min(na::dot(&self.bodies[b.data].velocity, &contact.normal));
-
-                self.bodies[b.data].velocity -= contact.normal * velocity_towards_surface;
-                self.bodies[b.data].position += contact.normal * contact.depth;
-                //             self.bodies[b.data].position -= contact.normal * contact.depth;
             }
         }
     }
