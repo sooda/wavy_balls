@@ -11,6 +11,8 @@ extern crate image;
 extern crate nalgebra as na;
 
 mod math;
+mod body;
+mod world;
 
 mod errors {
     error_chain! { }
@@ -47,6 +49,8 @@ fn main() {
         .to_homogeneous();
 
     let mut last_t = sdl_timer.ticks();
+
+    let world = world::World::new();
 
     'mainloop: loop {
         for ev in event_pump.poll_iter() {
