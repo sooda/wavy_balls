@@ -1,6 +1,5 @@
 use body::Body;
 use nc;
-use std::slice;
 use math;
 
 enum PhysRole {
@@ -50,7 +49,11 @@ impl World {
 
     }
 
-    pub fn bodies(&self) -> slice::Iter<Body> {
-        self.bodies.iter()
+    pub fn bodies(&self) -> &[Body] {
+        &self.bodies
+    }
+
+    pub fn bodies_mut(&mut self) -> &mut [Body] {
+        &mut self.bodies
     }
 }

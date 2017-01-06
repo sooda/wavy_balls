@@ -1,3 +1,5 @@
+#![feature(conservative_impl_trait)]
+
 #[macro_use]
 extern crate glium;
 extern crate glium_sdl2;
@@ -207,6 +209,42 @@ fn main() {
             }
         }
 
+        struct Input {
+            left: bool,
+            right: bool,
+            up: bool,
+            down: bool,
+        }
+        let input = {
+            use sdl2::keyboard::Scancode::*;
+
+            let kb = event_pump.keyboard_state();
+
+            Input {
+                left: kb.is_scancode_pressed(Left),
+                right: kb.is_scancode_pressed(Right),
+                up: kb.is_scancode_pressed(Up),
+                down: kb.is_scancode_pressed(Down),
+            }
+        };
+
+        let mut force_x = 0.0;
+        let mut force_z = 0.0;
+        if input.left {
+            force_x -= 1.0;
+        }
+        if input.right {
+            force_x += 1.0;
+        }
+        if input.up {
+            force_z -= 1.0;
+        }
+        if input.down {
+            force_z += 1.0;
+        }
+
+        world.bodies_mut()[0].force = Vec3::new(force_x, 0.0, force_z);
+
         let dt = (sdl_timer.ticks() - last_t) as f32 / 1000.0;
         last_t = sdl_timer.ticks();
 
@@ -218,10 +256,7 @@ fn main() {
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
         for body in world.bodies() {
-            let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 20.0),
-                                             &body.position.to_point(),
-                                             &Vec3::new(0.0, 1.0, 0.0))
-                .to_homogeneous();
+            let modelview = Iso3::new(body.position, Vec3::new(0.0, 0.0, 0.0)).to_homogeneous();
 
             body.mesh
                 .draw(&mut target,
