@@ -3,11 +3,18 @@ extern crate glium;
 extern crate glium_sdl2;
 extern crate sdl2;
 
+#[macro_use]
+extern crate error_chain;
+
 extern crate image;
 
 extern crate nalgebra as na;
 
 mod math;
+
+mod errors {
+    error_chain! { }
+}
 
 use glium::Surface;
 use na::{Transformation, ToHomogeneous, Transform, Translation, Norm};
