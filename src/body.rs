@@ -44,7 +44,7 @@ impl Body {
             force: math::Vec3::new(0.0, 0.0, 0.0),
             mesh: mesh,
             shape: shape,
-            fixed: fixed
+            fixed: fixed,
         }
     }
 }

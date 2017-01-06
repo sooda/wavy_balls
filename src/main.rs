@@ -37,7 +37,7 @@ use std::fs::File;
 use std::io::Read;
 
 use glium::Surface;
-use na::{Transformation, ToHomogeneous, Transform, Translation, Norm};
+use na::{Transformation, ToHomogeneous, Transform, Translation, Norm, Rotation3};
 use math::*;
 use std::rc::Rc;
 
@@ -137,10 +137,14 @@ fn run() -> Result<()> {
 
     let display_width = 800;
     let display_height = 600;
-    let display = sdl_video.window("FGJ", display_width, display_height).build_glium().chain_err(|| "failed to initialize glium context")?;
+    let display = sdl_video.window("FGJ", display_width, display_height)
+        .build_glium()
+        .chain_err(|| "failed to initialize glium context")?;
 
-    let mut event_pump = sdl_ctx.event_pump().map_err(sdl_err).chain_err(|| "failed to initialize SDL event pump")?;
-    let mut sdl_timer = sdl_ctx.timer().map_err(sdl_err).chain_err(|| "failed to initialize SDL timer")?;
+    let mut event_pump =
+        sdl_ctx.event_pump().map_err(sdl_err).chain_err(|| "failed to initialize SDL event pump")?;
+    let mut sdl_timer =
+        sdl_ctx.timer().map_err(sdl_err).chain_err(|| "failed to initialize SDL timer")?;
 
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                            3.1416 / 2.0,
@@ -149,14 +153,14 @@ fn run() -> Result<()> {
         .to_matrix();
 
     let mut mesh = vec![];
-    mesh.push(Vertex { position: [0.0f32, 0.0f32] });
+    mesh.push(Vertex { position: [0.0f32, 0.9f32] });
     mesh.push(Vertex { position: [0.0f32, 1.0f32] });
     mesh.push(Vertex { position: [1.0f32, 1.0f32] });
 
     let buffer = glium::VertexBuffer::new(&display, &mesh).chain_err(|| "failed to allocate GPU vertex buffer")?;
     let mut state = SampleModel {
         buffer: buffer,
-        program: load_shader_prog(&display, "test").chain_err(|| "failed to load shader")?
+        program: load_shader_prog(&display, "test").chain_err(|| "failed to load shader")?,
     };
 
     let mut last_t = sdl_timer.ticks();
@@ -171,14 +175,23 @@ fn run() -> Result<()> {
                                 body::BodyShape::from_obj("plane.obj").unwrap(), true);
     world.add_body(plane);
 
-    let texture = texture::load_texture(&display, "eh.png").chain_err(|| "failed to load texture")?;
+    for i in 0..10 {
+        let mut body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
+                               body::BodyShape::Sphere { radius: 1.0 }, false);
+
+        body.position.y += 2.5 + 2.5 * i as f32;
+        world.add_body(body);
+    }
+
+    let texture = texture::load_texture(&display, "eh.png").unwrap();
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
 
     let mut ino = INotify::init().chain_err(|| "failed to initialize inotify")?;
 
-    ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE).chain_err(|| "failed to add inotify watch")?;
+    ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE)
+        .chain_err(|| "failed to add inotify watch")?;
 
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
@@ -240,25 +253,26 @@ fn run() -> Result<()> {
             }
         };
 
+        let dt = (sdl_timer.ticks() - last_t) as f32 / 1000.0;
+        last_t = sdl_timer.ticks();
+
         let mut force_x = 0.0;
         let mut force_z = 0.0;
+        let force_mag = 1.0 / dt;
         if input.left {
-            force_x -= 1.0;
+            force_x -= force_mag;
         }
         if input.right {
-            force_x += 1.0;
+            force_x += force_mag;
         }
         if input.up {
-            force_z -= 1.0;
+            force_z -= force_mag;
         }
         if input.down {
-            force_z += 1.0;
+            force_z += force_mag;
         }
 
         world.bodies_mut()[0].force = Vec3::new(force_x, 0.0, force_z);
-
-        let dt = (sdl_timer.ticks() - last_t) as f32 / 1000.0;
-        last_t = sdl_timer.ticks();
 
         // Step the world
         world.step(dt);
@@ -267,8 +281,14 @@ fn run() -> Result<()> {
 
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
+        let camera_pos = Vec3::new(0.0, 2.0, 5.0);
+        let camera_rot = Rotation3::from_euler_angles(0.0, // roll
+                                                      -3.14 / 2.0, // pitch
+                                                      0.0 /* yaw */);
+
         for body in world.bodies() {
-            let modelview = Iso3::new(body.position, Vec3::new(0.0, 0.0, 0.0)).to_homogeneous();
+            let modelview = Iso3::from_rotation_matrix(body.position - camera_pos, camera_rot)
+                .to_homogeneous();
 
             body.mesh
                 .draw(&mut target,

@@ -80,9 +80,7 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
             }
             let texc;
             if a.1.is_none() {
-                texc = (Pnt2::new(0.0, 0.0),
-                        Pnt2::new(0.0, 0.0),
-                        Pnt2::new(0.0, 0.0));
+                texc = (Pnt2::new(0.0, 0.0), Pnt2::new(0.0, 0.0), Pnt2::new(0.0, 0.0));
             } else {
                 texc = (obj_texcs[t_i(a.1.unwrap())],
                         obj_texcs[t_i(b.1.unwrap())],
