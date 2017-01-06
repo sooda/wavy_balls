@@ -41,17 +41,24 @@ static VERTEX_SHADER: &'static str = r#"
 
     in vec3 position;
     in vec3 normal;
+    in vec2 tex_coord;
+
+    out vec2 f_tex_coord;
 
     void main() {
         gl_Position = perspective * modelview * vec4(position, 1.0);
+
+        f_tex_coord = tex_coord;
     }
 "#;
 
 static FRAGMENT_SHADER: &'static str = r#"
     #version 140
 
+    in vec2 f_tex_coord;
+
     void main() {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        gl_FragColor = vec4(1.0, f_tex_coord.x, f_tex_coord.y, 1.0);
     }
 "#;
 
@@ -122,7 +129,7 @@ fn main() {
                                            0.01,
                                            50.0f32)
         .to_matrix();
-    let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 20.0),
+    let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 5.0),
                                      &Pnt3::new(0.0, 0.0, -20.0),
                                      &Vec3::new(0.0, 1.0, 0.0))
         .to_homogeneous();

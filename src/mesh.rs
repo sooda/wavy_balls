@@ -16,7 +16,7 @@ struct Vertex {
     normal: [f32; 3],
     tex_coord: [f32; 2],
 }
-implement_vertex!(Vertex, position, normal);
+implement_vertex!(Vertex, position, normal, tex_coord);
 
 pub struct Mesh {
     buffer: glium::VertexBuffer<Vertex>,
@@ -46,9 +46,9 @@ impl Mesh {
     }
 
     pub fn from_obj<F: Facade, P: AsRef<Path> + ?Sized>(f: &F, path: &P) -> Result<Mesh> {
-        let (positions, normals) = obj::load_obj(path).chain_err(|| "unable to load .obj")?;
+        let (positions, normals, texcoord) = obj::load_obj(path).chain_err(|| "unable to load .obj")?;
 
-        Mesh::new(f, positions, normals)
+        Mesh::new(f, positions, normals, texcoord)
     }
 
     pub fn draw<S: Surface, U: Uniforms>(&self,
