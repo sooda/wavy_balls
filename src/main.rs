@@ -14,14 +14,42 @@ extern crate ncollide as nc;
 mod math;
 mod body;
 mod world;
+mod mesh;
+mod obj;
 
 mod errors {
-    error_chain!{}
+    error_chain! {
+        errors {
+            ObjLoadError
+        }
+    }
 }
 
 use glium::Surface;
 use na::{Transformation, ToHomogeneous, Transform, Translation, Norm};
 use math::*;
+
+static VERTEX_SHADER: &'static str = r#"
+    #version 140
+
+    uniform mat4 perspective;
+    uniform mat4 modelview;
+
+    in vec3 position;
+    in vec3 normal;
+
+    void main() {
+        gl_Position = perspective * modelview * vec4(position, 1.0);
+    }
+"#;
+
+static FRAGMENT_SHADER: &'static str = r#"
+    #version 140
+
+    void main() {
+        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    }
+"#;
 
 fn main() {
     use glium_sdl2::DisplayBuild;
@@ -44,7 +72,7 @@ fn main() {
                                            0.01,
                                            50.0f32)
         .to_matrix();
-    let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 0.0),
+    let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 20.0),
                                      &Pnt3::new(0.0, 0.0, -20.0),
                                      &Vec3::new(0.0, 1.0, 0.0))
         .to_homogeneous();
@@ -52,6 +80,10 @@ fn main() {
     let mut last_t = sdl_timer.ticks();
 
     let world = world::World::new();
+
+    let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
+        .unwrap();
+    let mesh = mesh::Mesh::from_obj(&display, "ballo.obj").unwrap();
 
     'mainloop: loop {
         for ev in event_pump.poll_iter() {
@@ -69,6 +101,14 @@ fn main() {
         let mut target = display.draw();
 
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
+
+        mesh.draw(&mut target,
+                  &uniform! {
+                      perspective: *projection.as_ref(),
+                      modelview: *modelview.as_ref()
+                  },
+                  &program)
+            .unwrap();
 
         target.finish().unwrap();
 
