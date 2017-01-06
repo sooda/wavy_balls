@@ -7,18 +7,11 @@ extern crate image;
 
 extern crate nalgebra as na;
 
-mod types {
-    use na;
-    pub type Vec2 = na::Vector2<f32>;
-    pub type Vec3 = na::Vector3<f32>;
-    pub type Pnt3 = na::Point3<f32>;
-    pub type Iso3 = na::Isometry3<f32>;
-    pub type Mat4 = na::Matrix4<f32>;
-}
+mod math;
 
 use glium::Surface;
 use na::{Transformation, ToHomogeneous, Transform, Translation, Norm};
-use types::*;
+use math::*;
 
 fn main() {
     use glium_sdl2::DisplayBuild;
@@ -37,9 +30,14 @@ fn main() {
     let mut sdl_timer = sdl_ctx.timer().unwrap();
 
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
-                                           3.1416 / 2.0, 0.01, 50.0f32).to_matrix();
-    let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 0.0), &Pnt3::new(0.0, 0.0, -20.0),
-                                     &Vec3::new(0.0, 1.0, 0.0)).to_homogeneous();
+                                           3.1416 / 2.0,
+                                           0.01,
+                                           50.0f32)
+        .to_matrix();
+    let modelview = Iso3::look_at_rh(&Pnt3::new(0.0, 0.0, 0.0),
+                                     &Pnt3::new(0.0, 0.0, -20.0),
+                                     &Vec3::new(0.0, 1.0, 0.0))
+        .to_homogeneous();
 
     let mut last_t = sdl_timer.ticks();
 
@@ -49,7 +47,7 @@ fn main() {
 
             match ev {
                 Event::Quit { .. } => break 'mainloop,
-                _ => ()
+                _ => (),
             }
         }
 
