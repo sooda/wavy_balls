@@ -14,6 +14,7 @@ use errors::*;
 struct Vertex {
     position: [f32; 3],
     normal: [f32; 3],
+    tex_coord: [f32; 2],
 }
 implement_vertex!(Vertex, position, normal);
 
@@ -22,12 +23,19 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new<F: Facade>(f: &F, positions: Vec<Pnt3>, normals: Vec<Vec3>) -> Result<Mesh> {
+    pub fn new<F: Facade>(f: &F,
+                          positions: Vec<Pnt3>,
+                          normals: Vec<Vec3>,
+                          texture_coordinates: Vec<Pnt2>)
+                          -> Result<Mesh> {
         let mut vs = Vec::with_capacity(positions.len());
-        for (p, n) in positions.into_iter().zip(normals.into_iter()) {
+        for ((p, n), t) in positions.into_iter()
+            .zip(normals.into_iter())
+            .zip(texture_coordinates.into_iter()) {
             let v = Vertex {
                 position: *p.as_ref(),
                 normal: *n.as_ref(),
+                tex_coord: *t.as_ref(),
             };
             vs.push(v);
         }
