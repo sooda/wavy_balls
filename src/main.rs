@@ -25,6 +25,9 @@ mod errors {
     }
 }
 
+use std::fs::File;
+use std::io::Read;
+
 use glium::Surface;
 use na::{Transformation, ToHomogeneous, Transform, Translation, Norm};
 use math::*;
@@ -51,6 +54,52 @@ static FRAGMENT_SHADER: &'static str = r#"
     }
 "#;
 
+#[derive(Clone, Copy)]
+struct Vertex {
+    position: [f32; 2],
+}
+implement_vertex!(Vertex, position);
+
+struct SampleModel {
+    buffer: glium::VertexBuffer<Vertex>,
+    program: glium::Program,
+}
+
+fn render<S: glium::Surface>(surface: &mut S, state: &SampleModel, time: f32) {
+    let params = glium::DrawParameters {
+        depth: glium::Depth {
+            test: glium::draw_parameters::DepthTest::IfLess,
+            write: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    surface.draw(&state.buffer,
+              &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+              &state.program,
+              &uniform! {
+                     time: time,
+                 },
+              &params)
+        .unwrap();
+}
+
+fn read_file(name: &str) -> String {
+    let mut f = File::open(name).unwrap();
+    let mut s = String::new();
+    f.read_to_string(&mut s).unwrap();
+
+    s
+}
+
+fn load_shader_prog<F: glium::backend::Facade>(facade: &F, name: &str) -> glium::Program {
+    let vert = read_file(&("src/".to_owned() + name + ".vert"));
+    let frag = read_file(&("src/".to_owned() + name + ".frag"));
+
+    glium::Program::from_source(facade, &vert, &frag, None).unwrap()
+}
+
 fn main() {
     use glium_sdl2::DisplayBuild;
 
@@ -76,6 +125,17 @@ fn main() {
                                      &Pnt3::new(0.0, 0.0, -20.0),
                                      &Vec3::new(0.0, 1.0, 0.0))
         .to_homogeneous();
+
+    let mut mesh = vec![];
+    mesh.push(Vertex { position: [0.0f32, 0.0f32] });
+    mesh.push(Vertex { position: [0.0f32, 1.0f32] });
+    mesh.push(Vertex { position: [1.0f32, 1.0f32] });
+
+    let buffer = glium::VertexBuffer::new(&display, &mesh).unwrap();
+    let mut state = SampleModel {
+        buffer: buffer,
+        program: load_shader_prog(&display, "test"),
+    };
 
     let mut last_t = sdl_timer.ticks();
 
@@ -109,6 +169,8 @@ fn main() {
                   },
                   &program)
             .unwrap();
+
+        render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
 
         target.finish().unwrap();
 
