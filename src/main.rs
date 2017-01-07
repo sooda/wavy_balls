@@ -204,6 +204,10 @@ fn run() -> Result<()> {
         .map_err(sdl_err).chain_err(|| "failed to load background music")?;
     music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
 
+    let jump_sound =
+        sdl2::mixer::Chunk::from_file(Path::new("146718__fins__button.wav")).map_err(sdl_err)
+            .chain_err(|| "failed to load jump sound")?;
+
     let mut allow_jump = true;
 
     'mainloop: loop {
@@ -252,6 +256,9 @@ fn run() -> Result<()> {
                         }
                         Some(Keycode::Space) if allow_jump => {
                             force_y = 2.0 * gravity * force_mag;
+                            sdl2::mixer::Channel::all().play(&jump_sound, 0)
+                                .map_err(sdl_err)
+                                .chain_err(|| "failed to play jump sound")?;
                             allow_jump = false;
                         }
                         _ => (),
