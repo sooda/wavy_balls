@@ -52,7 +52,7 @@ use inotify::ffi::*;
 use rand::Rng;
 
 use math::*;
-use audio::{AudioMixer, JumpSound};
+use audio::{AudioMixer, JumpSound, HitSound};
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -187,18 +187,6 @@ fn run() -> Result<()> {
     player.borrow_mut().set_translation(Vec3::new(0.0, 3.0, 0.0));
     player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
 
-    let player_clone = player.clone();
-    let mut handler = move |o1: &np::object::RigidBodyHandle<f32>,
-                            o2: &np::object::RigidBodyHandle<f32>| {
-        let oi1: isize = o1.borrow_mut().index();
-        let oi2: isize = o2.borrow_mut().index();
-        let plri: isize = player_clone.borrow_mut().index();
-        if oi1 == plri || oi2 == plri {
-            // collision detected
-        }
-    };
-    world.add_contact_handler(handler);
-
     let landscape = world.add_body(
         Rc::new(mesh::Mesh::from_obj(&display, "mappi.obj").chain_err(|| "failed to load plane mesh")?),
         landscape_texture,
@@ -228,9 +216,27 @@ fn run() -> Result<()> {
     ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE)
         .chain_err(|| "failed to add inotify watch")?;
 
-    let mixer = AudioMixer::new("foldplop_-_memory_song_part_2.ogg")
-        .chain_err(|| "failed to initialize audio")?;
+    let mixer = Rc::new(AudioMixer::new("foldplop_-_memory_song_part_2.ogg")
+        .chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
+    let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
+
+    {
+        let player = player.clone();
+        let mixer = mixer.clone();
+        let hit_sound = hit_sound.clone();
+        let mut handler = move |o1: &np::object::RigidBodyHandle<f32>,
+                                o2: &np::object::RigidBodyHandle<f32>| {
+            let oi1: isize = o1.borrow_mut().index();
+            let oi2: isize = o2.borrow_mut().index();
+            let plri: isize = player.borrow_mut().index();
+            if oi1 == plri || oi2 == plri {
+                mixer.play(hit_sound.play());
+            }
+        };
+
+        world.add_contact_handler(handler);
+    }
 
     let mut allow_jump = true;
 

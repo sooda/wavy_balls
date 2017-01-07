@@ -90,6 +90,14 @@ impl<'a> AudioMixer<'a> {
     }
 }
 
+struct NoEffect {
+}
+
+impl StereoFilter for NoEffect {
+    // would specialize play() above if could. oh well, just do nothin'
+    fn filter(&mut self, buf: &mut [i16]) {}
+}
+
 struct VolumeEffect {
     vol: f32,
 }
@@ -114,6 +122,22 @@ impl JumpSound {
         AudioTape {
             clip: &self.clip,
             filter: VolumeEffect { vol: vol },
+        }
+    }
+}
+
+pub struct HitSound {
+    clip: SoundClip,
+}
+
+impl HitSound {
+    pub fn new() -> Result<Self> {
+        Ok(HitSound { clip: SoundClip::new("114181__edgardedition__thud11.wav")? })
+    }
+    pub fn play(&self) -> AudioTape<NoEffect> {
+        AudioTape {
+            clip: &self.clip,
+            filter: NoEffect {},
         }
     }
 }
