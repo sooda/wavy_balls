@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 use std::path::Path;
 
-use sdl2::mixer::{init, INIT_OGG, Sdl2MixerContext, open_audio, AUDIO_S16LSB, allocate_channels, Chunk, Channel, EffectCallback, Music};
+use sdl2::mixer::{init, INIT_OGG, Sdl2MixerContext, open_audio, AUDIO_S16LSB, allocate_channels,
+                  Chunk, Channel, EffectCallback, Music};
 use ::sdl_err;
 
 use errors::*;
@@ -34,7 +35,7 @@ struct AudioTape<'a, F: StereoFilter> {
 }
 
 struct SdlCallback<F: StereoFilter> {
-    filter: F
+    filter: F,
 }
 
 impl<F: StereoFilter> EffectCallback for SdlCallback<F> {
@@ -53,17 +54,24 @@ pub struct AudioMixer<'a> {
 
 impl<'a> AudioMixer<'a> {
     pub fn new(music_filename: &str) -> Result<Self> {
-        let sdl_mixer = init(INIT_OGG).map_err(sdl_err).chain_err(|| "failed to initialize SDL mixer")?;
+        let sdl_mixer = init(INIT_OGG).map_err(sdl_err)
+            .chain_err(|| "failed to initialize SDL mixer")?;
 
-        open_audio(44100, AUDIO_S16LSB, 2, 2048).map_err(sdl_err).chain_err(|| "failed to open SDL audio")?;
+        open_audio(44100, AUDIO_S16LSB, 2, 2048).map_err(sdl_err)
+            .chain_err(|| "failed to open SDL audio")?;
         allocate_channels(16);
 
-        let music = Music::from_file(Path::new("foldplop_-_memory_song_part_2.ogg"))
-            .map_err(sdl_err).chain_err(|| "failed to load background music")?;
+        let music =
+            Music::from_file(Path::new("foldplop_-_memory_song_part_2.ogg")).map_err(sdl_err)
+                .chain_err(|| "failed to load background music")?;
 
         music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
 
-        Ok(AudioMixer { phantom_clip: PhantomData, sdl_mixer: sdl_mixer, music: music })
+        Ok(AudioMixer {
+            phantom_clip: PhantomData,
+            sdl_mixer: sdl_mixer,
+            music: music,
+        })
     }
 
     pub fn play<F: StereoFilter>(&self, tape: AudioTape<'a, F>) -> Result<()> {
@@ -103,6 +111,9 @@ impl JumpSound {
         Ok(JumpSound { clip: SoundClip::new("146718__fins__button.wav")? })
     }
     pub fn play(&self, vol: f32) -> AudioTape<VolumeEffect> {
-        AudioTape { clip: &self.clip, filter: VolumeEffect { vol: vol } }
+        AudioTape {
+            clip: &self.clip,
+            filter: VolumeEffect { vol: vol },
+        }
     }
 }

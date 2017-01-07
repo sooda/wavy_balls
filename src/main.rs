@@ -174,6 +174,8 @@ fn run() -> Result<()> {
     };
 
     let mut last_t = sdl_timer.ticks();
+
+
     let mut world = world::World::new();
 
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
@@ -184,6 +186,18 @@ fn run() -> Result<()> {
                    body::BodyShape::Sphere{radius: 1.0}, false);
     player.borrow_mut().set_translation(Vec3::new(0.0, 3.0, 0.0));
     player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
+
+    let player_clone = player.clone();
+    let mut handler = move |o1: &np::object::RigidBodyHandle<f32>,
+                            o2: &np::object::RigidBodyHandle<f32>| {
+        let oi1: isize = o1.borrow_mut().index();
+        let oi2: isize = o2.borrow_mut().index();
+        let plri: isize = player_clone.borrow_mut().index();
+        if oi1 == plri || oi2 == plri {
+            // collision detected
+        }
+    };
+    world.add_contact_handler(handler);
 
     let landscape = world.add_body(
         Rc::new(mesh::Mesh::from_obj(&display, "mappi.obj").chain_err(|| "failed to load plane mesh")?),
@@ -390,7 +404,7 @@ fn run() -> Result<()> {
         }
 
         // impulse based:
-         player.borrow_mut()
+        player.borrow_mut()
             .apply_central_impulse(Vec3::new(0.0, force_y, 0.0) * camera_rot);
 
         // angular momentum based control:
@@ -404,18 +418,17 @@ fn run() -> Result<()> {
 
         cube.draw(&mut target,
                   &uniform! {
-                perspective: *projection.as_ref(),
-                modelview: *cam_rotate.as_ref(),
-                tex: &envmap
-        },
+                    perspective: *projection.as_ref(),
+                    modelview: *cam_rotate.as_ref(),
+                    tex: &envmap
+                  },
                   &program,
                   false)
             .chain_err(|| "failed to draw cubemap")?;
 
         for body in world.rigid_bodies() {
             let body = body.borrow_mut();
-            let model = body.position().to_homogeneous(); //Iso3::new(body.position().translation, body.position().rotation)
-           //     .to_homogeneous();
+            let model = body.position().to_homogeneous();
             let modelview = cam_view * model;
 
             let body = body.user_data().unwrap().downcast_ref::<body::Body>().unwrap();
