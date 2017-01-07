@@ -204,6 +204,8 @@ fn run() -> Result<()> {
         .map_err(sdl_err).chain_err(|| "failed to load background music")?;
     music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
 
+    let mut allow_jump = true;
+
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
 
@@ -218,6 +220,15 @@ fn run() -> Result<()> {
                 }
             }
         }
+
+        let dt = (sdl_timer.ticks() - last_t) as f32 / 1000.0;
+        last_t = sdl_timer.ticks();
+
+        let mut force_x = 0.0;
+        let mut force_y = 0.0;
+        let mut force_z = 0.0;
+
+        let force_mag = 1.0 / dt;
 
         for ev in event_pump.poll_iter() {
             use sdl2::event::Event;
@@ -239,6 +250,16 @@ fn run() -> Result<()> {
                                 }
                             }
                         }
+                        Some(Keycode::Space) if allow_jump => {
+                            force_y = 2.0 * gravity * force_mag;
+                            allow_jump = false;
+                        }
+                        _ => (),
+                    }
+                }
+                Event::KeyUp { keycode, .. } => {
+                    match keycode {
+                        Some(Keycode::Space) => allow_jump = true,
                         _ => (),
                     }
                 }
@@ -265,12 +286,6 @@ fn run() -> Result<()> {
             }
         };
 
-        let dt = (sdl_timer.ticks() - last_t) as f32 / 1000.0;
-        last_t = sdl_timer.ticks();
-
-        let mut force_x = 0.0;
-        let mut force_z = 0.0;
-        let force_mag = 1.0 / dt;
         if input.left {
             force_x -= force_mag;
         }
@@ -284,7 +299,7 @@ fn run() -> Result<()> {
             force_z += force_mag;
         }
 
-        world.bodies_mut()[0].force = Vec3::new(force_x, 0.0, force_z);
+        world.bodies_mut()[0].force = Vec3::new(force_x, force_y, force_z);
 
         // Step the world
         world.step(dt);

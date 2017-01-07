@@ -70,7 +70,7 @@ impl World {
             for obj in self.bodies.iter_mut() {
                 // continue;
                 if !obj.fixed {
-                    obj.force += Vec3::new(0.0, -9.80665, 0.0);
+                    obj.force += Vec3::new(0.0, -gravity, 0.0);
                 }
             }
 
