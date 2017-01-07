@@ -13,12 +13,15 @@ extern crate ncollide as nc;
 
 extern crate inotify;
 
+extern crate rand;
+
 mod math;
 mod body;
 mod world;
 mod mesh;
 mod obj;
 mod texture;
+mod particle;
 
 mod errors {
     error_chain! {
@@ -43,6 +46,8 @@ use na::{Transformation, ToHomogeneous, Transform, Translation, Norm, Rotation3}
 use glium::Surface;
 use inotify::INotify;
 use inotify::ffi::*;
+
+use rand::Rng;
 
 use math::*;
 
@@ -197,6 +202,10 @@ fn run() -> Result<()> {
 
     let cube = mesh::Mesh::for_cubemap(&display).unwrap();
 
+    let mut particles = particle::Particles::new(
+        &display, vec![texture::load_image("starAlpha.png")?], 100)
+                    .chain_err(|| "failed to initialize particle engine")?;
+
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
 
@@ -215,6 +224,8 @@ fn run() -> Result<()> {
 
     let mut allow_jump = true;
 
+    let mut last_particle = 0.0;
+
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
 
@@ -232,6 +243,7 @@ fn run() -> Result<()> {
 
         let dt = (sdl_timer.ticks() - last_t) as f32 / 1000.0;
         last_t = sdl_timer.ticks();
+        let curr_t = last_t as f32 / 1000.0;
 
         let mut force_x = 0.0;
         let mut force_y = 0.0;
@@ -313,8 +325,25 @@ fn run() -> Result<()> {
 
         world.bodies_mut()[0].force = Vec3::new(force_x, force_y, force_z);
 
+        if curr_t - last_particle > 0.15 {
+            last_particle = curr_t;
+
+            particles.add(particle::Particle {
+                position: Pnt3::new(0.0, 0.0, 0.0),
+                scale: Vec2::new(0.4, 0.4),
+                velocity: Vec3::new(rand::random::<f32>() * 0.5,
+                                    2.5,
+                                    rand::random::<f32>() * 0.5),
+                color: Vec4::new(0.0, 0.0, 1.0, 0.8),
+                lifetime: Some(5.0),
+                alive: 0.0,
+                texture: 0,
+            });
+        }
+
         // Step the world
         world.step(dt);
+        particles.step(dt);
 
         let mut target = display.draw();
 
@@ -351,6 +380,10 @@ fn run() -> Result<()> {
                       true)
                 .chain_err(|| "failed to draw mesh")?;
         }
+
+        let modelview = Iso3::from_rotation_matrix(-camera_pos, camera_rot).to_homogeneous();
+        particles.draw(&mut target, *projection.as_ref(), *modelview.as_ref())
+            .chain_err(|| "failed to render particles")?;
 
         render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
 
