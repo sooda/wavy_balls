@@ -35,15 +35,16 @@ use errors::*;
 
 use std::fs::File;
 use std::io::Read;
-
-use glium::Surface;
-use na::{Transformation, ToHomogeneous, Transform, Translation, Norm, Rotation3};
-use math::*;
 use std::rc::Rc;
+use std::time;
+use std::path::Path;
 
+use na::{Transformation, ToHomogeneous, Transform, Translation, Norm, Rotation3};
+use glium::Surface;
 use inotify::INotify;
 use inotify::ffi::*;
-use std::path::Path;
+
+use math::*;
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -255,7 +256,7 @@ fn run() -> Result<()> {
                             }
                         }
                         Some(Keycode::Space) if allow_jump => {
-                            force_y = 2.0 * gravity * force_mag;
+                            force_y = 2.0 * GRAVITY * force_mag;
                             sdl2::mixer::Channel::all().play(&jump_sound, 0)
                                 .map_err(sdl_err)
                                 .chain_err(|| "failed to play jump sound")?;
@@ -339,7 +340,7 @@ fn run() -> Result<()> {
 
         target.finish().chain_err(|| "failed to finish frame")?;
 
-        std::thread::sleep_ms(1);
+        std::thread::sleep(std::time::Duration::from_millis(1));
     }
 
     Ok(())

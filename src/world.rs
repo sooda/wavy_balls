@@ -1,10 +1,7 @@
 use body::{Body, BodyShape};
 use na;
 use nc;
-use std;
 use math::*;
-
-const PHYS_DT: f32 = 0.01;
 
 pub struct World {
     cw: nc::world::CollisionWorld3<f32, usize>,
@@ -70,7 +67,7 @@ impl World {
             for obj in self.bodies.iter_mut() {
                 // continue;
                 if !obj.fixed {
-                    obj.force += Vec3::new(0.0, -gravity, 0.0);
+                    obj.force += Vec3::new(0.0, -GRAVITY, 0.0);
                 }
             }
 

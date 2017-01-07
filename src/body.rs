@@ -15,7 +15,7 @@ pub enum BodyShape {
 
 impl BodyShape {
     pub fn from_obj<P: AsRef<Path> + ?Sized>(path: &P) -> Result<BodyShape> {
-        let (positions, normals, texcoord) =
+        let (positions, _normals, _texcoord) =
             obj::load_obj(path).chain_err(|| "unable to load .obj")?;
 
         let indices = (0usize..positions.len() / 3)
