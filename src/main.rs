@@ -263,7 +263,7 @@ fn run() -> Result<()> {
         let mut force_y = 0.0;
         let mut force_z = 0.0;
 
-        let force_mag = 0.25;
+        let force_mag = 0.5;
 
         for ev in event_pump.poll_iter() {
             use sdl2::event::Event;
