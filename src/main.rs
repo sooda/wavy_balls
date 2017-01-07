@@ -180,23 +180,28 @@ fn run() -> Result<()> {
     let mut last_t = sdl_timer.ticks();
     let mut world = world::World::new();
 
+    let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
+    let landscape_texture = Rc::new(texture::load_texture(&display, "mappi.png").chain_err(|| "failed to load landscape texture")?);
+
     let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
+        eh_texture.clone(),
                    body::BodyShape::Sphere{radius: 1.0}, false);
     player.borrow_mut().set_translation(Vec3::new(0.0, 3.0, 0.0));
     player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
 
-    let landscape = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "mappi.obj").chain_err(|| "failed to load plane mesh")?),
+    let landscape = world.add_body(
+        Rc::new(mesh::Mesh::from_obj(&display, "mappi.obj").chain_err(|| "failed to load plane mesh")?),
+        landscape_texture,
                                 body::BodyShape::from_obj("mappi.obj").unwrap(), true);
     landscape.borrow_mut().set_translation(Vec3::new(0.0, 0.0, 0.0));
 
-    for i in 0..10 {
+    for i in 0..10i32 {
         let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
+        eh_texture.clone(),
      body::BodyShape::Sphere{radius: 1.0}, false);
         ball.borrow_mut().set_translation(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
     }
 
-    let texture =
-        texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?;
     let envmap = texture::load_texture(&display, "cubemap.jpg").chain_err(|| "failed to load environment map")?;
 
     let cube = mesh::Mesh::for_cubemap(&display).unwrap();
@@ -420,12 +425,14 @@ fn run() -> Result<()> {
             let modelview = cam_view * model;
 
             let body = body.user_data().unwrap().downcast_ref::<body::Body>().unwrap();
+
+            let tex: &glium::Texture2d = &body.texture;
             body.mesh
                 .draw(&mut target,
                       &uniform! {
                       perspective: *projection.as_ref(),
                       modelview: *modelview.as_ref(),
-                      tex: &texture,
+                      tex: tex,
                   },
                       &program,
                       true)

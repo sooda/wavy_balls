@@ -2,6 +2,7 @@ use body::{Body, BodyShape};
 use na;
 use nc;
 use np;
+use glium;
 use math::*;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -24,6 +25,7 @@ impl World {
 
     pub fn add_body(&mut self,
                     mesh: Rc<mesh::Mesh>,
+                    texture: Rc<glium::texture::Texture2d>,
                     shape: BodyShape,
                     fixed: bool)
                     -> Rc<RefCell<np::object::RigidBody<f32>>> {
@@ -64,6 +66,7 @@ impl World {
         rigid_body.set_user_data(Some(Box::new(Body {
             mesh: mesh,
             fixed: fixed,
+            texture: texture,
         })));
 
         self.phys_world.add_rigid_body(rigid_body)

@@ -4,6 +4,7 @@ use mesh;
 use na;
 use nc;
 use np;
+use glium;
 use errors::*;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -31,6 +32,7 @@ impl BodyShape {
 pub struct Body {
     pub mesh: Rc<mesh::Mesh>,
     pub fixed: bool,
+    pub texture: Rc<glium::texture::Texture2d>,
 }
 
 impl Body {}
