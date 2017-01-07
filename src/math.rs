@@ -10,3 +10,4 @@ pub type Mat4 = na::Matrix4<f32>;
 
 pub const GRAVITY: f32 = 9.80665;
 pub const PHYS_DT: f32 = 0.01; // physics simulation internal time step in seconds
+pub const PI: f32 = 3.1416;

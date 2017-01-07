@@ -160,7 +160,7 @@ fn run() -> Result<()> {
     sdl2::mixer::allocate_channels(16);
 
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
-                                           3.1416 / 2.0,
+                                           PI / 2.0,
                                            0.01,
                                            50.0f32)
         .to_matrix();
@@ -226,6 +226,16 @@ fn run() -> Result<()> {
 
     let mut last_particle = 0.0;
 
+    struct CameraAngles {
+        yaw: f32, // no restrictions for this
+        pitch: f32, // only between ground and ceiling, can't snap your neck
+    }
+
+    let mut camera = CameraAngles {
+        yaw: 0.0,
+        pitch: 0.0,
+    };
+
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
 
@@ -278,6 +288,10 @@ fn run() -> Result<()> {
                                 .chain_err(|| "failed to play jump sound")?;
                             allow_jump = false;
                         }
+                        Some(Keycode::R) => {
+                            camera.yaw = 0.0;
+                            camera.pitch = 0.0;
+                        }
                         _ => (),
                     }
                 }
@@ -290,6 +304,27 @@ fn run() -> Result<()> {
                 _ => (),
             }
         }
+
+        struct MouseDelta {
+            x: i32,
+            y: i32,
+        }
+
+        let mouse = {
+            let m = event_pump.relative_mouse_state();
+            if m.left() {
+                MouseDelta {
+                    x: m.x(),
+                    y: m.y(),
+                }
+            } else {
+                MouseDelta { x: 0, y: 0 }
+            }
+        };
+
+        camera.yaw += mouse.x as f32 / 100.0;
+        camera.pitch += mouse.y as f32 / 100.0;
+        camera.pitch = na::clamp(camera.pitch, -PI / 2.0, PI / 2.0);
 
         struct Input {
             left: bool,
@@ -329,7 +364,7 @@ fn run() -> Result<()> {
             last_particle = curr_t;
 
             particles.add(particle::Particle {
-                position: Pnt3::new(0.0, 0.0, 0.0),
+                position: Pnt3::new(0.0, 0.0, 0.0), // global world coordinate
                 scale: Vec2::new(0.4, 0.4),
                 velocity: Vec3::new(rand::random::<f32>() * 0.5,
                                     2.5,
@@ -349,16 +384,19 @@ fn run() -> Result<()> {
 
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
-        let camera_pos = Vec3::new(0.0, 2.0, 5.0);
-        let camera_rot = Rotation3::from_euler_angles(0.0, // roll
-                                                      -3.14 / 2.0, // pitch
-                                                      0.0 /* yaw */);
+        let camera_pos = Vec3::new(0.0, 3.0, 5.0);
+        let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
+                         Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
 
-        let modelview = Iso3::from_rotation_matrix(na::zero(), camera_rot).to_homogeneous();
+        // iso is rotation followed by translation, can't use it directly just like that
+        let cam_rotate = Iso3::from_rotation_matrix(na::zero(), camera_rot).to_homogeneous();
+        let cam_translate = Iso3::new(-camera_pos, na::zero()).to_homogeneous();
+        let cam_view = cam_rotate * cam_translate;
+
         cube.draw(&mut target,
                   &uniform! {
                 perspective: *projection.as_ref(),
-                modelview: *modelview.as_ref(),
+                modelview: *cam_rotate.as_ref(),
                 tex: &envmap
         },
                   &program,
@@ -366,8 +404,8 @@ fn run() -> Result<()> {
             .chain_err(|| "failed to draw cubemap")?;
 
         for body in world.bodies() {
-            let modelview = Iso3::from_rotation_matrix(body.position - camera_pos, camera_rot)
-                .to_homogeneous();
+            let model = Iso3::new(body.position, na::zero()).to_homogeneous();
+            let modelview = cam_view * model;
 
             body.mesh
                 .draw(&mut target,
@@ -381,8 +419,7 @@ fn run() -> Result<()> {
                 .chain_err(|| "failed to draw mesh")?;
         }
 
-        let modelview = Iso3::from_rotation_matrix(-camera_pos, camera_rot).to_homogeneous();
-        particles.draw(&mut target, *projection.as_ref(), *modelview.as_ref())
+        particles.draw(&mut target, *projection.as_ref(), *cam_view.as_ref())
             .chain_err(|| "failed to render particles")?;
 
         render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
