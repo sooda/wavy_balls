@@ -106,7 +106,7 @@ impl Mesh {
                              Pnt3::new(r, u, bk),
                              Pnt3::new(r, u, bk),
                              Pnt3::new(r, u, fr),
-                             Pnt3::new(l, u, bk)];
+                             Pnt3::new(l, u, fr)];
 
         let normals = vec![Vec3::new(r, 0.0, 0.0),
                            Vec3::new(r, 0.0, 0.0),
@@ -156,8 +156,8 @@ impl Mesh {
         let uv_r = Pnt2::new(3.0 * c, 1.0 * r);
         let uv_fr = Pnt2::new(2.0 * c, 1.0 * r);
         let uv_bk = Pnt2::new(0.0 * c, 1.0 * r);
-        let uv_u = Pnt2::new(1.0 * c, 0.0 * r);
-        let uv_d = Pnt2::new(1.0 * c, 2.0 * r);
+        let uv_u = Pnt2::new(1.0 * c, 2.0 * r);
+        let uv_d = Pnt2::new(1.0 * c, 0.0 * r);
 
         let uv_0 = Vec2::new(0.0, r);
         let uv_1 = Vec2::new(0.0, 0.0);
