@@ -52,19 +52,150 @@ impl Mesh {
         Mesh::new(f, positions, normals, texcoord)
     }
 
+    pub fn for_cubemap<F: Facade>(f: &F) -> Result<Mesh> {
+        let fr = -1.0;
+        let bk = 1.0;
+        let l = -1.0;
+        let r = 1.0;
+        let d = -1.0;
+        let u = 1.0;
+
+        let positions = vec![// -X
+                             Pnt3::new(l, u, bk),
+                             Pnt3::new(l, d, bk),
+                             Pnt3::new(l, u, fr),
+                             Pnt3::new(l, u, fr),
+                             Pnt3::new(l, d, fr),
+                             Pnt3::new(l, d, bk),
+
+                             // +X
+                             Pnt3::new(r, u, fr),
+                             Pnt3::new(r, d, fr),
+                             Pnt3::new(r, u, bk),
+                             Pnt3::new(r, u, bk),
+                             Pnt3::new(r, d, bk),
+                             Pnt3::new(r, d, fr),
+
+                             // -Z
+                             Pnt3::new(l, u, fr),
+                             Pnt3::new(l, d, fr),
+                             Pnt3::new(r, u, fr),
+                             Pnt3::new(r, u, fr),
+                             Pnt3::new(r, d, fr),
+                             Pnt3::new(l, d, fr),
+
+                             // +Z
+                             Pnt3::new(r, u, bk),
+                             Pnt3::new(r, d, bk),
+                             Pnt3::new(l, u, bk),
+                             Pnt3::new(l, u, bk),
+                             Pnt3::new(l, d, bk),
+                             Pnt3::new(r, d, bk),
+
+                             // -Y
+                             Pnt3::new(l, d, fr),
+                             Pnt3::new(l, d, bk),
+                             Pnt3::new(r, d, fr),
+                             Pnt3::new(r, d, fr),
+                             Pnt3::new(r, d, bk),
+                             Pnt3::new(l, d, bk),
+
+                             // +Y
+                             Pnt3::new(l, u, bk),
+                             Pnt3::new(l, u, fr),
+                             Pnt3::new(r, u, bk),
+                             Pnt3::new(r, u, bk),
+                             Pnt3::new(r, u, fr),
+                             Pnt3::new(l, u, bk)];
+
+        let normals = vec![Vec3::new(r, 0.0, 0.0),
+                           Vec3::new(r, 0.0, 0.0),
+                           Vec3::new(r, 0.0, 0.0),
+                           Vec3::new(r, 0.0, 0.0),
+                           Vec3::new(r, 0.0, 0.0),
+                           Vec3::new(r, 0.0, 0.0),
+
+                           Vec3::new(l, 0.0, 0.0),
+                           Vec3::new(l, 0.0, 0.0),
+                           Vec3::new(l, 0.0, 0.0),
+                           Vec3::new(l, 0.0, 0.0),
+                           Vec3::new(l, 0.0, 0.0),
+                           Vec3::new(l, 0.0, 0.0),
+
+                           Vec3::new(0.0, 0.0, bk),
+                           Vec3::new(0.0, 0.0, bk),
+                           Vec3::new(0.0, 0.0, bk),
+                           Vec3::new(0.0, 0.0, bk),
+                           Vec3::new(0.0, 0.0, bk),
+                           Vec3::new(0.0, 0.0, bk),
+
+                           Vec3::new(0.0, 0.0, fr),
+                           Vec3::new(0.0, 0.0, fr),
+                           Vec3::new(0.0, 0.0, fr),
+                           Vec3::new(0.0, 0.0, fr),
+                           Vec3::new(0.0, 0.0, fr),
+                           Vec3::new(0.0, 0.0, fr),
+
+                           Vec3::new(0.0, u, 0.0),
+                           Vec3::new(0.0, u, 0.0),
+                           Vec3::new(0.0, u, 0.0),
+                           Vec3::new(0.0, u, 0.0),
+                           Vec3::new(0.0, u, 0.0),
+                           Vec3::new(0.0, u, 0.0),
+
+                           Vec3::new(0.0, d, 0.0),
+                           Vec3::new(0.0, d, 0.0),
+                           Vec3::new(0.0, d, 0.0),
+                           Vec3::new(0.0, d, 0.0),
+                           Vec3::new(0.0, d, 0.0),
+                           Vec3::new(0.0, d, 0.0)];
+
+        let r = 1.0 / 3.0;
+        let c = 1.0 / 4.0;
+        let uv_l = Pnt2::new(1.0 * c, 1.0 * r);
+        let uv_r = Pnt2::new(3.0 * c, 1.0 * r);
+        let uv_fr = Pnt2::new(2.0 * c, 1.0 * r);
+        let uv_bk = Pnt2::new(0.0 * c, 1.0 * r);
+        let uv_u = Pnt2::new(1.0 * c, 0.0 * r);
+        let uv_d = Pnt2::new(1.0 * c, 2.0 * r);
+
+        let uv_0 = Vec2::new(0.0, r);
+        let uv_1 = Vec2::new(0.0, 0.0);
+        let uv_2 = Vec2::new(c, r);
+        let uv_3 = Vec2::new(c, 0.0);
+
+        let mut uvs = vec![];
+        for base in &[uv_l, uv_r, uv_fr, uv_bk, uv_d, uv_u] {
+            uvs.push(*base + uv_0);
+            uvs.push(*base + uv_1);
+            uvs.push(*base + uv_2);
+            uvs.push(*base + uv_2);
+            uvs.push(*base + uv_3);
+            uvs.push(*base + uv_1);
+        }
+
+        Ok(Mesh::new(f, positions, normals, uvs)?)
+    }
+
     pub fn draw<S: Surface, U: Uniforms>(&self,
                                          surface: &mut S,
                                          uniforms: &U,
-                                         program: &glium::Program)
+                                         program: &glium::Program,
+                                         depth_test: bool)
                                          -> Result<()> {
-        let params = glium::DrawParameters {
-            depth: glium::Depth {
-                test: glium::draw_parameters::DepthTest::IfLess,
-                write: true,
+        let params;
+        if depth_test {
+            params = glium::DrawParameters {
+                depth: glium::Depth {
+                    test: glium::draw_parameters::DepthTest::IfLess,
+                    write: true,
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        };
+            };
+        } else {
+            params = Default::default();
+        }
 
         surface.draw(&self.buffer,
                   &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),

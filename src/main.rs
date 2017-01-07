@@ -191,7 +191,11 @@ fn run() -> Result<()> {
         world.add_body(body);
     }
 
-    let texture = texture::load_texture(&display, "eh.png").unwrap();
+    let texture =
+        texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?;
+    let envmap = texture::load_texture(&display, "cubemap.jpg").chain_err(|| "failed to load environment map")?;
+
+    let cube = mesh::Mesh::for_cubemap(&display).unwrap();
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
@@ -321,6 +325,17 @@ fn run() -> Result<()> {
                                                       -3.14 / 2.0, // pitch
                                                       0.0 /* yaw */);
 
+        let modelview = Iso3::from_rotation_matrix(na::zero(), camera_rot).to_homogeneous();
+        cube.draw(&mut target,
+                  &uniform! {
+                perspective: *projection.as_ref(),
+                modelview: *modelview.as_ref(),
+                tex: &envmap
+        },
+                  &program,
+                  false)
+            .chain_err(|| "failed to draw cubemap")?;
+
         for body in world.bodies() {
             let modelview = Iso3::from_rotation_matrix(body.position - camera_pos, camera_rot)
                 .to_homogeneous();
@@ -332,7 +347,8 @@ fn run() -> Result<()> {
                       modelview: *modelview.as_ref(),
                       tex: &texture,
                   },
-                      &program)
+                      &program,
+                      true)
                 .chain_err(|| "failed to draw mesh")?;
         }
 
