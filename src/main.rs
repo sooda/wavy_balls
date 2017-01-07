@@ -292,6 +292,7 @@ fn run() -> Result<()> {
                             camera.yaw = 0.0;
                             camera.pitch = 0.0;
                         }
+                        Some(Keycode::S) => world.bodies_mut()[0].velocity = na::zero(),
                         _ => (),
                     }
                 }
