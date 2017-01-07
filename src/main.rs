@@ -10,6 +10,7 @@ extern crate image;
 
 extern crate nalgebra as na;
 extern crate ncollide as nc;
+extern crate nphysics3d as np;
 
 extern crate inotify;
 
@@ -177,23 +178,19 @@ fn run() -> Result<()> {
     };
 
     let mut last_t = sdl_timer.ticks();
-
-    let mut body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
-                               body::BodyShape::Sphere { radius: 1.0 }, false);
-    body.position.y += 2.5;
     let mut world = world::World::new();
-    world.add_body(body);
 
-    let plane = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "plane.obj").chain_err(|| "failed to load plane mesh")?),
+    let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
+                   body::BodyShape::Sphere{radius: 1.0}, false);
+    player.borrow_mut().set_translation(Vec3::new(0.0, 3.0, 0.0));
+    player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
+
+    let plane = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "plane.obj").chain_err(|| "failed to load plane mesh")?),
                                 body::BodyShape::from_obj("plane.obj").unwrap(), true);
-    world.add_body(plane);
-
     for i in 0..10 {
-        let mut body = body::Body::new(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
-                               body::BodyShape::Sphere { radius: 1.0 }, false);
-
-        body.position.y += 2.5 + 2.5 * i as f32;
-        world.add_body(body);
+        let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
+     body::BodyShape::Sphere{radius: 1.0}, false);
+        ball.borrow_mut().set_translation(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
     }
 
     let texture =
@@ -259,7 +256,7 @@ fn run() -> Result<()> {
         let mut force_y = 0.0;
         let mut force_z = 0.0;
 
-        let force_mag = 1.0 / dt;
+        let force_mag = 1.0;
 
         for ev in event_pump.poll_iter() {
             use sdl2::event::Event;
@@ -292,7 +289,7 @@ fn run() -> Result<()> {
                             camera.yaw = 0.0;
                             camera.pitch = 0.0;
                         }
-                        Some(Keycode::S) => world.bodies_mut()[0].velocity = na::zero(),
+                        Some(Keycode::S) => player.borrow_mut().set_lin_vel(na::zero()),
                         _ => (),
                     }
                 }
@@ -359,7 +356,7 @@ fn run() -> Result<()> {
             force_z += force_mag;
         }
 
-        world.bodies_mut()[0].force = Vec3::new(force_x, force_y, force_z);
+        player.borrow_mut().apply_central_impulse(Vec3::new(force_x, force_y, force_z));
 
         if curr_t - last_particle > 0.15 {
             last_particle = curr_t;
@@ -404,10 +401,13 @@ fn run() -> Result<()> {
                   false)
             .chain_err(|| "failed to draw cubemap")?;
 
-        for body in world.bodies() {
-            let model = Iso3::new(body.position, na::zero()).to_homogeneous();
+        for body in world.rigid_bodies() {
+            let body = body.borrow_mut();
+            let model = body.position().to_homogeneous(); //Iso3::new(body.position().translation, body.position().rotation)
+           //     .to_homogeneous();
             let modelview = cam_view * model;
 
+            let body = body.user_data().unwrap().downcast_ref::<body::Body>().unwrap();
             body.mesh
                 .draw(&mut target,
                       &uniform! {

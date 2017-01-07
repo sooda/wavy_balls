@@ -1,124 +1,86 @@
 use body::{Body, BodyShape};
 use na;
 use nc;
+use np;
 use math::*;
+use std::rc::Rc;
+use std::cell::RefCell;
+use mesh;
 
 pub struct World {
-    cw: nc::world::CollisionWorld3<f32, usize>,
-    bodies: Vec<Body>,
-    dt_time_left: f32,
-}
-
-fn collide_dynamic_dynamic(body_a: &mut Body,
-                           body_b: &mut Body,
-                           contact: nc::query::Contact<Pnt3>) {
-}
-
-fn collide_dynamic_fixed(body_a: &mut Body, body_b: &mut Body, contact: nc::query::Contact<Pnt3>) {
-    let velocity_towards_surface = 0f32.max(na::dot(&body_a.velocity, &contact.normal));
-    body_a.velocity -= contact.normal * velocity_towards_surface;
-    body_a.position -= contact.normal * contact.depth;
+    phys_world: np::world::World<f32>,
+    leftover_dt: f32,
 }
 
 impl World {
     pub fn new() -> World {
-        let mut cw = nc::world::CollisionWorld3::new(0.01, true);
-
-        // let mut cg = nc::world::CollisionGroups::new();
-        // cg.set_membership(&[COLL_WORLD]);
-        // cg.set_whitelist(&[COLL_FOO]);
-
+        let mut pw = np::world::World::new();
+        pw.set_gravity(Vec3::new(0.0, -GRAVITY, 0.0));
         World {
-            cw: cw,
-            bodies: Vec::new(),
-            dt_time_left: 0.0,
+            phys_world: pw,
+            leftover_dt: 0.0,
         }
     }
 
-    pub fn add_body(&mut self, body: Body) {
-        let cg = nc::world::CollisionGroups::new();
-        let shape_handle = match body.shape {
-            BodyShape::Sphere { radius } => {
-                let shape = nc::shape::Ball::new(radius);
-                nc::shape::ShapeHandle::new(shape)
+    pub fn add_body(&mut self,
+                    mesh: Rc<mesh::Mesh>,
+                    shape: BodyShape,
+                    fixed: bool)
+                    -> Rc<RefCell<np::object::RigidBody<f32>>> {
+
+        let restitution = 0.01;
+        let friction = 10.0;
+
+        let mut rigid_body = if fixed {
+            match shape {
+                BodyShape::Sphere { radius } => {
+                    np::object::RigidBody::new_static(nc::shape::Ball::new(radius),
+                                                      restitution,
+                                                      friction)
+                }
+                BodyShape::TriangleSoup(ref trimesh) => {
+                    np::object::RigidBody::new_static(trimesh.clone(), restitution, friction)
+                }
             }
-            BodyShape::TriangleSoup(ref trimesh) => nc::shape::ShapeHandle::new(trimesh.clone()),
+        } else {
+            let density = 1.0;
+            match shape {
+                BodyShape::Sphere { radius } => {
+                    np::object::RigidBody::new_dynamic(nc::shape::Ball::new(radius),
+                                                       density,
+                                                       restitution,
+                                                       friction)
+                }
+                BodyShape::TriangleSoup(ref trimesh) => {
+                    unimplemented!();
+                    // np::object::RigidBody::new_dynamic(trimesh.clone(),
+                    // density,
+                    // restitution,
+                    // friction)
+                }
+            }
         };
 
-        let uid = self.bodies.len();
-        self.cw.deferred_add(uid,
-                             Iso3::new(body.position, na::zero()),
-                             shape_handle,
-                             cg,
-                             nc::world::GeometricQueryType::Contacts(0.0),
-                             uid);
-        self.bodies.push(body)
+        rigid_body.set_user_data(Some(Box::new(Body {
+            mesh: mesh,
+            fixed: fixed,
+        })));
+
+        self.phys_world.add_rigid_body(rigid_body)
     }
 
     // Advance the world state forwards by dt seconds
     pub fn step(&mut self, frame_dt: f32) {
 
-        self.dt_time_left += frame_dt;
+        self.leftover_dt += frame_dt;
 
-        while self.dt_time_left >= PHYS_DT {
-            self.dt_time_left -= PHYS_DT;
-
-            // Check collisions and accumulate forces
-            for obj in self.bodies.iter_mut() {
-                // continue;
-                if !obj.fixed {
-                    obj.force += Vec3::new(0.0, -GRAVITY, 0.0);
-                }
-            }
-
-            for (uid, obj) in self.bodies.iter_mut().enumerate() {
-                let mass = 1.0;
-                obj.velocity += PHYS_DT * obj.force / mass;
-                obj.position += PHYS_DT * obj.velocity; // euler was a geniose
-                obj.force = Vec3::new(0.0, 0.0, 0.0);
-
-                self.cw.deferred_set_position(uid, Iso3::new(obj.position, na::zero()));
-            }
-
-            self.cw.update();
-
-            for (mut a, mut b, mut contact) in self.cw.contacts() {
-
-                assert!(a.data != b.data);
-
-                // Obtain two mutable references to elements in the same vector
-                let (body_a, body_b) = if a.data < b.data {
-                    let (begin, end) = self.bodies.split_at_mut(b.data);
-                    (&mut begin[a.data], &mut end[0])
-                } else {
-                    let (begin, end) = self.bodies.split_at_mut(a.data);
-                    (&mut begin[b.data], &mut end[0])
-                };
-
-                match (body_a.fixed, body_b.fixed) {
-                    (false, false) => {
-                        collide_dynamic_dynamic(body_a, body_b, contact);
-                    }
-                    (false, true) => {
-                        collide_dynamic_fixed(body_a, body_b, contact);
-                    }
-                    (true, false) => {
-                        contact.flip();
-                        collide_dynamic_fixed(body_b, body_a, contact);
-                    }
-                    (true, true) => {
-                        // fixed-fixed collision not required
-                    }
-                }
-            }
+        while self.leftover_dt >= PHYS_DT {
+            self.leftover_dt -= PHYS_DT;
+            self.phys_world.step(PHYS_DT);
         }
     }
 
-    pub fn bodies(&self) -> &[Body] {
-        &self.bodies
-    }
-
-    pub fn bodies_mut(&mut self) -> &mut [Body] {
-        &mut self.bodies
+    pub fn rigid_bodies(&self) -> np::world::RigidBodies<f32> {
+        self.phys_world.rigid_bodies()
     }
 }

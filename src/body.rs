@@ -3,6 +3,7 @@ use obj;
 use mesh;
 use na;
 use nc;
+use np;
 use errors::*;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -28,23 +29,8 @@ impl BodyShape {
 }
 
 pub struct Body {
-    pub position: math::Vec3,
-    pub velocity: math::Vec3,
-    pub force: math::Vec3,
     pub mesh: Rc<mesh::Mesh>,
-    pub shape: BodyShape,
     pub fixed: bool,
 }
 
-impl Body {
-    pub fn new(mesh: Rc<mesh::Mesh>, shape: BodyShape, fixed: bool) -> Body {
-        Body {
-            position: math::Vec3::new(0.0, 0.0, 0.0),
-            velocity: math::Vec3::new(0.0, 0.0, 0.0),
-            force: math::Vec3::new(0.0, 0.0, 0.0),
-            mesh: mesh,
-            shape: shape,
-            fixed: fixed,
-        }
-    }
-}
+impl Body {}
