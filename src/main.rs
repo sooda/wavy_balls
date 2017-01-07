@@ -16,6 +16,7 @@ extern crate inotify;
 
 extern crate rand;
 
+mod audio;
 mod math;
 mod body;
 mod world;
@@ -51,6 +52,7 @@ use inotify::ffi::*;
 use rand::Rng;
 
 use math::*;
+use audio::{AudioMixer, JumpSound};
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -154,12 +156,6 @@ fn run() -> Result<()> {
     let mut sdl_timer =
         sdl_ctx.timer().map_err(sdl_err).chain_err(|| "failed to initialize SDL timer")?;
 
-    let sdl_mixer = sdl2::mixer::init(sdl2::mixer::INIT_OGG).map_err(sdl_err)
-        .chain_err(|| "failed to initialize SDL mixer")?;
-    sdl2::mixer::open_audio(44100, sdl2::mixer::AUDIO_S16LSB, 2, 2048).map_err(sdl_err)
-        .chain_err(|| "failed to open SDL audio")?;
-    sdl2::mixer::allocate_channels(16);
-
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                            PI / 2.0,
                                            0.01,
@@ -218,13 +214,9 @@ fn run() -> Result<()> {
     ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE)
         .chain_err(|| "failed to add inotify watch")?;
 
-    let music = sdl2::mixer::Music::from_file(Path::new("foldplop_-_memory_song_part_2.ogg"))
-        .map_err(sdl_err).chain_err(|| "failed to load background music")?;
-    music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
-
-    let jump_sound =
-        sdl2::mixer::Chunk::from_file(Path::new("146718__fins__button.wav")).map_err(sdl_err)
-            .chain_err(|| "failed to load jump sound")?;
+    let mixer = AudioMixer::new("foldplop_-_memory_song_part_2.ogg")
+        .chain_err(|| "failed to initialize audio")?;
+    let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
 
     let mut allow_jump = true;
 
@@ -240,7 +232,7 @@ fn run() -> Result<()> {
         pitch: 0.0,
     };
 
-    let mut times_jumped = 0;
+    let mut times_jumped = 0u32;
 
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
@@ -289,38 +281,9 @@ fn run() -> Result<()> {
                         }
                         Some(Keycode::Space) if allow_jump => {
                             force_y = 2.0 * GRAVITY * force_mag;
-                            let chan = sdl2::mixer::Channel::all().play(&jump_sound, 0)
-                                .map_err(sdl_err)
-                                .chain_err(|| "failed to play jump sound")?;
-
-                            struct Eff {
-                                x: u32,
-                                y: i16,
-                            }
-
-                            impl sdl2::mixer::EffectCallback for Eff {
-                                type SampleType = i16; // this matches AUDIO_S16LSB for open_audio
-                                fn callback(&mut self, buf: &mut [i16]) {
-                                    for i in buf.iter_mut() {
-                                        *i /= self.y;
-                                    }
-                                }
-                            }
-
-                            // for testing: each jump gets a bit quieter.
                             times_jumped += 1;
-                            let ef = Eff {
-                                x: 42 + times_jumped,
-                                y: times_jumped as i16,
-                            };
-
-                            // btw, SDL2_mixer removes all effects from a channel when the channel
-                            // is done playing, and that's when the effect is dropped, if not
-                            // earlier explicitly
-                            chan.register_effect(ef)
-                                .map_err(sdl_err)
-                                .chain_err(|| "failed to effect")?;
-
+                            mixer.play(jump_sound.play(1.0 / (times_jumped as f32)))
+                                .chain_err(|| "failed to play jump sound")?;
                             allow_jump = false;
                         }
                         Some(Keycode::R) => {
