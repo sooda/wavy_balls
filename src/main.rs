@@ -227,6 +227,7 @@ fn run() -> Result<()> {
                 Event::Quit { .. } => break 'mainloop,
                 Event::KeyDown { keycode, .. } => {
                     match keycode {
+                        Some(Keycode::Escape) => break 'mainloop,
                         Some(Keycode::Return) => {
                             match load_shader_prog(&display, "test") {
                                 Ok(prog) => state.program = prog,
