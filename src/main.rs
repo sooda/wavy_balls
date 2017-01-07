@@ -163,7 +163,7 @@ fn run() -> Result<()> {
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                            PI / 2.0,
                                            0.01,
-                                           50.0f32)
+                                           500.0f32)
         .to_matrix();
 
     let mut mesh = vec![];
@@ -343,20 +343,7 @@ fn run() -> Result<()> {
             }
         };
 
-        if input.left {
-            force_x -= force_mag;
-        }
-        if input.right {
-            force_x += force_mag;
-        }
-        if input.up {
-            force_z -= force_mag;
-        }
-        if input.down {
-            force_z += force_mag;
-        }
 
-        player.borrow_mut().apply_central_impulse(Vec3::new(force_x, force_y, force_z));
 
         if curr_t - last_particle > 0.15 {
             last_particle = curr_t;
@@ -382,9 +369,27 @@ fn run() -> Result<()> {
 
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
-        let camera_pos = Vec3::new(0.0, 3.0, 5.0);
         let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
                          Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
+        let camera_pos = player.borrow_mut().position().translation +
+                         Vec3::new(0.0, 3.0, 5.0) * camera_rot;
+
+
+        if input.left {
+            force_x -= force_mag;
+        }
+        if input.right {
+            force_x += force_mag;
+        }
+        if input.up {
+            force_z -= force_mag;
+        }
+        if input.down {
+            force_z += force_mag;
+        }
+
+        player.borrow_mut()
+            .apply_central_impulse(Vec3::new(force_x, force_y, force_z) * camera_rot);
 
         // iso is rotation followed by translation, can't use it directly just like that
         let cam_rotate = Iso3::from_rotation_matrix(na::zero(), camera_rot).to_homogeneous();
