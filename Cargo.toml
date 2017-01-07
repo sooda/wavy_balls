@@ -15,6 +15,9 @@ inotify = "0.3.0"
 rand = "0.3"
 
 [dependencies.sdl2]
-version = "0.27"
+version = "0.27.3"
 default-features = false
 features = ["mixer"]
+
+[replace]
+"sdl2:0.27.3" = { git = "https://github.com/sooda/rust-sdl2", branch = "mixregistereffect" }

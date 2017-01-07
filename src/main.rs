@@ -240,6 +240,8 @@ fn run() -> Result<()> {
         pitch: 0.0,
     };
 
+    let mut times_jumped = 0;
+
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
 
@@ -287,9 +289,38 @@ fn run() -> Result<()> {
                         }
                         Some(Keycode::Space) if allow_jump => {
                             force_y = 2.0 * GRAVITY * force_mag;
-                            sdl2::mixer::Channel::all().play(&jump_sound, 0)
+                            let chan = sdl2::mixer::Channel::all().play(&jump_sound, 0)
                                 .map_err(sdl_err)
                                 .chain_err(|| "failed to play jump sound")?;
+
+                            struct Eff {
+                                x: u32,
+                                y: i16,
+                            }
+
+                            impl sdl2::mixer::EffectCallback for Eff {
+                                type SampleType = i16; // this matches AUDIO_S16LSB for open_audio
+                                fn callback(&mut self, buf: &mut [i16]) {
+                                    for i in buf.iter_mut() {
+                                        *i /= self.y;
+                                    }
+                                }
+                            }
+
+                            // for testing: each jump gets a bit quieter.
+                            times_jumped += 1;
+                            let ef = Eff {
+                                x: 42 + times_jumped,
+                                y: times_jumped as i16,
+                            };
+
+                            // btw, SDL2_mixer removes all effects from a channel when the channel
+                            // is done playing, and that's when the effect is dropped, if not
+                            // earlier explicitly
+                            chan.register_effect(ef)
+                                .map_err(sdl_err)
+                                .chain_err(|| "failed to effect")?;
+
                             allow_jump = false;
                         }
                         Some(Keycode::R) => {
