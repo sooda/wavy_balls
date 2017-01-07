@@ -28,7 +28,7 @@ impl World {
                     fixed: bool)
                     -> Rc<RefCell<np::object::RigidBody<f32>>> {
 
-        let restitution = 0.01;
+        let restitution = 0.001;
         let friction = 10.0;
 
         let mut rigid_body = if fixed {

@@ -258,7 +258,7 @@ fn run() -> Result<()> {
         let mut force_y = 0.0;
         let mut force_z = 0.0;
 
-        let force_mag = 1.0;
+        let force_mag = 0.25;
 
         for ev in event_pump.poll_iter() {
             use sdl2::event::Event;
@@ -390,8 +390,13 @@ fn run() -> Result<()> {
             force_z += force_mag;
         }
 
+        // impulse based:
+        // player.borrow_mut()
+        //    .apply_central_impulse(Vec3::new(force_x, force_y, force_z) * camera_rot);
+
+        // angular momentum based control:
         player.borrow_mut()
-            .apply_central_impulse(Vec3::new(force_x, force_y, force_z) * camera_rot);
+            .apply_angular_momentum(Vec3::new(force_z, force_y, -force_x) * camera_rot);
 
         // iso is rotation followed by translation, can't use it directly just like that
         let cam_rotate = Iso3::from_rotation_matrix(na::zero(), camera_rot).to_homogeneous();
