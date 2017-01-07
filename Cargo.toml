@@ -5,10 +5,14 @@ authors = ["Mikko Perttunen <cyndis@kapsi.fi>"]
 
 [dependencies]
 glium_sdl2 = "0.13"
-sdl2 = "0.27"
 glium = "0.15"
 nalgebra = "0.9"
 image = "0.11"
 error-chain = "0.7"
 ncollide = "0.10.*"
 inotify = "0.3.0"
+
+[dependencies.sdl2]
+version = "0.27"
+default-features = false
+features = ["mixer"]

@@ -131,6 +131,7 @@ fn run() -> Result<()> {
 
     let sdl_ctx = sdl2::init().map_err(sdl_err).chain_err(|| "failed to initialize SDL")?;
     let sdl_video = sdl_ctx.video().map_err(sdl_err).chain_err(|| "failed to initialize video")?;
+    let sdl_audio = sdl_ctx.audio().map_err(sdl_err).chain_err(|| "failed to initialize audio")?;
     let sdl_glattr = sdl_video.gl_attr();
     sdl_glattr.set_context_profile(sdl2::video::GLProfile::Core);
     sdl_glattr.set_context_version(3, 3);
@@ -145,6 +146,12 @@ fn run() -> Result<()> {
         sdl_ctx.event_pump().map_err(sdl_err).chain_err(|| "failed to initialize SDL event pump")?;
     let mut sdl_timer =
         sdl_ctx.timer().map_err(sdl_err).chain_err(|| "failed to initialize SDL timer")?;
+
+    let sdl_mixer = sdl2::mixer::init(sdl2::mixer::INIT_OGG).map_err(sdl_err)
+        .chain_err(|| "failed to initialize SDL mixer")?;
+    sdl2::mixer::open_audio(44100, sdl2::mixer::AUDIO_S16LSB, 2, 2048).map_err(sdl_err)
+        .chain_err(|| "failed to open SDL audio")?;
+    sdl2::mixer::allocate_channels(16);
 
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                            3.1416 / 2.0,
@@ -192,6 +199,10 @@ fn run() -> Result<()> {
 
     ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE)
         .chain_err(|| "failed to add inotify watch")?;
+
+    let music = sdl2::mixer::Music::from_file(Path::new("foldplop_-_memory_song_part_2.ogg"))
+        .map_err(sdl_err).chain_err(|| "failed to load background music")?;
+    music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
 
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
