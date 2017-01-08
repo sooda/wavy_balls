@@ -8,45 +8,42 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use mesh;
 
+use nc::world::CollisionObject3;
+use np::object::{WorldObject, RigidBodyHandle};
+
 pub struct World {
     phys_world: np::world::World<f32>,
     leftover_dt: f32,
 }
 
 struct ContactHandler {
-    callback: Box<FnMut(&np::object::RigidBodyHandle<f32>,
-                        &np::object::RigidBodyHandle<f32>)>,
+    callback: Box<FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>)>,
 }
 
 impl ContactHandler {
     pub fn new<F>(callback: F) -> ContactHandler
-        where F: FnMut(&np::object::RigidBodyHandle<f32>,
-                       &np::object::RigidBodyHandle<f32>) + 'static
+        where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
     {
         ContactHandler { callback: Box::new(callback) }
     }
 }
 
-impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, np::object::WorldObject<f32>> for ContactHandler {
+impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for ContactHandler {
     fn handle_contact_started(&mut self,
-                              co1: &nc::world::CollisionObject<Pnt3,
-                                                               Iso3,
-                                                               np::object::WorldObject<f32>>,
-                              co2: &nc::world::CollisionObject<Pnt3,
-                                                               Iso3,
-                                                               np::object::WorldObject<f32>>,
-                              contacts: &nc::narrow_phase::ContactAlgorithm<Pnt3, Iso3>) {
+                              co1: &CollisionObject3<f32, WorldObject<f32>>,
+                              co2: &CollisionObject3<f32, WorldObject<f32>>,
+                              contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
 
         if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
 
             let o1 = match co1.data {
-                np::object::WorldObject::RigidBody(ref handle) => handle,
+                WorldObject::RigidBody(ref handle) => handle,
                 _ => {
                     panic!();
                 }
             };
             let o2 = match co2.data {
-                np::object::WorldObject::RigidBody(ref handle) => handle,
+                WorldObject::RigidBody(ref handle) => handle,
                 _ => {
                     panic!();
                 }
@@ -56,12 +53,8 @@ impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, np::object::WorldObject<f32>> 
         }
     }
     fn handle_contact_stopped(&mut self,
-                              co1: &nc::world::CollisionObject<Pnt3,
-                                                               Iso3,
-                                                               np::object::WorldObject<f32>>,
-                              co2: &nc::world::CollisionObject<Pnt3,
-                                                               Iso3,
-                                                               np::object::WorldObject<f32>>) {
+                              co1: &CollisionObject3<f32, WorldObject<f32>>,
+                              co2: &CollisionObject3<f32, WorldObject<f32>>) {
     }
 }
 
@@ -77,8 +70,7 @@ impl World {
     }
 
     pub fn add_contact_handler<F>(&mut self, handler: F)
-        where F: FnMut(&np::object::RigidBodyHandle<f32>,
-                       &np::object::RigidBodyHandle<f32>) + 'static
+        where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
     {
 
         let handler = ContactHandler::new(handler);
