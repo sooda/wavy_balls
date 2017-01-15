@@ -60,12 +60,16 @@ impl InputState {
         if let Some(ref ctrl) = self.controller {
             use sdl2::controller::Axis::*;
             use sdl2::controller::Button::*;
+            use std::cmp::max;
+
+            let deadzone = 4000;
+            let clamp_deadzone = |f: i16| max(f.abs() - deadzone, 0) * f.signum();
 
             let scale = 1.0 / i16::max_value() as f32;
-            input.camera = Vec2::new(ctrl.axis(RightX) as f32 * scale,
-                                     ctrl.axis(RightY) as f32 * scale);
-            input.player = Vec2::new(ctrl.axis(LeftX) as f32 * scale,
-                                     ctrl.axis(LeftY) as f32 * scale);
+            input.camera = Vec2::new(clamp_deadzone(ctrl.axis(RightX)) as f32 * scale,
+                                     clamp_deadzone(ctrl.axis(RightY)) as f32 * scale);
+            input.player = Vec2::new(clamp_deadzone(ctrl.axis(LeftX)) as f32 * scale,
+                                     clamp_deadzone(ctrl.axis(LeftY)) as f32 * scale);
 
             if ctrl.button(Back) {
                 input.quit = true;
