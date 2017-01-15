@@ -48,8 +48,8 @@ impl<F: StereoFilter> EffectCallback for SdlCallback<F> {
 
 pub struct AudioMixer<'a> {
     phantom_clip: PhantomData<&'a SoundClip>,
-    sdl_mixer: Sdl2MixerContext,
-    music: Music,
+    _sdl_mixer: Sdl2MixerContext,
+    _music: Music,
 }
 
 pub trait Sound<F: StereoFilter> {
@@ -68,15 +68,15 @@ impl<'a> AudioMixer<'a> {
         allocate_channels(16);
 
         let music =
-            Music::from_file(Path::new("foldplop_-_memory_song_part_2.ogg")).map_err(sdl_err)
+            Music::from_file(Path::new(music_filename)).map_err(sdl_err)
                 .chain_err(|| "failed to load background music")?;
 
         music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
 
         Ok(AudioMixer {
             phantom_clip: PhantomData,
-            sdl_mixer: sdl_mixer,
-            music: music,
+            _sdl_mixer: sdl_mixer,
+            _music: music,
         })
     }
 
@@ -103,7 +103,7 @@ struct NoEffect {
 
 impl StereoFilter for NoEffect {
     // would specialize play() above if could. oh well, just do nothin'
-    fn filter(&mut self, buf: &mut [i16]) {}
+    fn filter(&mut self, _buf: &mut [i16]) {}
 }
 
 struct VolumeEffect {
@@ -152,7 +152,7 @@ impl HitSound {
 impl Sound<NoEffect> for HitSound {
     type PlayArgs = ();
 
-    fn play(&self, args: ()) -> AudioTape<NoEffect> {
+    fn play(&self, _args: ()) -> AudioTape<NoEffect> {
         AudioTape {
             clip: &self.clip,
             filter: NoEffect {},

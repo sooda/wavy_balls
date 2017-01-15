@@ -3,7 +3,6 @@ use obj;
 use mesh;
 use na;
 use nc;
-use np;
 use glium;
 use errors::*;
 use std::rc::Rc;

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use na;
 
 pub type Vec2 = na::Vector2<f32>;

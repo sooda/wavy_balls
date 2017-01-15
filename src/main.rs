@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 #[macro_use]
 extern crate glium;
 extern crate glium_sdl2;
@@ -47,15 +49,12 @@ use errors::*;
 use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
-use std::time;
 use std::path::Path;
 
-use na::{Transformation, ToHomogeneous, Transform, Translation, Norm, Rotation3};
+use na::{ToHomogeneous, Rotation3, Norm};
 use glium::Surface;
 use inotify::INotify;
 use inotify::ffi::*;
-
-use rand::Rng;
 
 use math::*;
 use audio::{AudioMixer, JumpSound, HitSound};
@@ -159,7 +158,7 @@ fn run() -> Result<()> {
 
     let sdl_ctx = sdl2::init().map_err(sdl_err).chain_err(|| "failed to initialize SDL")?;
     let sdl_video = sdl_ctx.video().map_err(sdl_err).chain_err(|| "failed to initialize video")?;
-    let sdl_audio = sdl_ctx.audio().map_err(sdl_err).chain_err(|| "failed to initialize audio")?;
+    let _sdl_audio = sdl_ctx.audio().map_err(sdl_err).chain_err(|| "failed to initialize audio")?;
     let sdl_glattr = sdl_video.gl_attr();
     sdl_glattr.set_context_profile(sdl2::video::GLProfile::Core);
     sdl_glattr.set_context_version(3, 3);
@@ -182,9 +181,10 @@ fn run() -> Result<()> {
         let mut buffer = String::new();
         File::open("gamecontrollerdb.txt")
             .chain_err(|| "failed to open gamecontrollerdb.txt")?
-            .read_to_string(&mut buffer);
+            .read_to_string(&mut buffer)
+            .chain_err(|| "failed to read gamecontrollerdb.txt")?;
         for line in buffer.lines() {
-            sdl_gcon.add_mapping(line);
+            sdl_gcon.add_mapping(line).chain_err(|| "cannot add mapping")?;
         }
 
         println!("{} game controllers detected.", num_gcons);
@@ -282,13 +282,14 @@ fn run() -> Result<()> {
         let player = player.clone();
         let mixer = mixer.clone();
         let hit_sound = hit_sound.clone();
-        let mut handler = move |o1: &np::object::RigidBodyHandle<f32>,
+        let handler = move |o1: &np::object::RigidBodyHandle<f32>,
                                 o2: &np::object::RigidBodyHandle<f32>| {
             let oi1: isize = o1.borrow_mut().index();
             let oi2: isize = o2.borrow_mut().index();
             let plri: isize = player.borrow_mut().index();
             if oi1 == plri || oi2 == plri {
-                mixer.play(&*hit_sound, ());
+                // bleh, can't ".chain_err(foo)?" this
+                mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
             }
         };
 

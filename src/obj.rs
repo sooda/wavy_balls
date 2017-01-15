@@ -5,7 +5,7 @@ use na::Norm;
 
 use std::path::Path;
 use std::fs::File;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{BufRead, BufReader};
 
 pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>, Vec<Pnt2>)> {
     fn parse_f(tok: &str) -> Result<(isize, Option<isize>, Option<isize>)> {

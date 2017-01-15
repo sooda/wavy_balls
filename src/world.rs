@@ -1,5 +1,4 @@
 use body::{Body, BodyShape, BodyConfig};
-use na;
 use nc;
 use np;
 use glium;
@@ -32,7 +31,7 @@ impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for ContactH
     fn handle_contact_started(&mut self,
                               co1: &CollisionObject3<f32, WorldObject<f32>>,
                               co2: &CollisionObject3<f32, WorldObject<f32>>,
-                              contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
+                              _contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
 
         if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
 
@@ -52,8 +51,8 @@ impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for ContactH
         }
     }
     fn handle_contact_stopped(&mut self,
-                              co1: &CollisionObject3<f32, WorldObject<f32>>,
-                              co2: &CollisionObject3<f32, WorldObject<f32>>) {
+                              _co1: &CollisionObject3<f32, WorldObject<f32>>,
+                              _co2: &CollisionObject3<f32, WorldObject<f32>>) {
     }
 }
 
@@ -74,14 +73,14 @@ impl SmoothContactHandler {
         }
     }
     fn begin(&mut self,
-             rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
-             fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
+             _rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
+             _fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
         self.num_touches += 1;
         println!("num touches {}", self.num_touches);
     }
     fn end(&mut self,
-           rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
-           fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
+           _rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
+           _fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
         if self.num_touches > 0 {
             self.num_touches -= 1;
         }
@@ -93,7 +92,7 @@ impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for SmoothCo
     fn handle_contact_started(&mut self,
                               co1: &CollisionObject3<f32, WorldObject<f32>>,
                               co2: &CollisionObject3<f32, WorldObject<f32>>,
-                              contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
+                              _contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
         if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
             let o1 = match co1.data {
                 WorldObject::RigidBody(ref handle) => handle,
@@ -204,7 +203,7 @@ impl World {
                                                        config.restitution,
                                                        config.friction)
                 }
-                BodyShape::TriangleSoup(ref trimesh) => {
+                BodyShape::TriangleSoup(ref _trimesh) => {
                     unimplemented!();
                     // np::object::RigidBody::new_dynamic(trimesh.clone(),
                     // density,

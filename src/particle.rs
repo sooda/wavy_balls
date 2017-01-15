@@ -2,8 +2,6 @@ use glium;
 use na;
 use errors::*;
 
-use std::path::Path;
-
 use math::*;
 
 #[derive(Clone, Copy, Default)]
