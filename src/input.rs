@@ -81,8 +81,9 @@ impl InputState {
             }
         } else {
             let m = pump.relative_mouse_state();
+            let scale = 1.0 / 10.0;
             if m.left() {
-                input.camera = Vec2::new(m.x() as f32 / 100.0, m.y() as f32 / 100.0);
+                input.camera = Vec2::new(m.x() as f32 * scale, m.y() as f32 * scale);
             }
         }
 
