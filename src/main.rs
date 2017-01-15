@@ -16,6 +16,9 @@ extern crate inotify;
 
 extern crate rand;
 
+#[link(name = "ode")]
+extern { }
+
 mod audio;
 mod math;
 mod body;
@@ -25,6 +28,8 @@ mod obj;
 mod texture;
 mod particle;
 mod input;
+
+mod ode;
 
 mod errors {
     error_chain! {
@@ -138,6 +143,10 @@ fn sdl_err(r: String) -> Error {
 
 fn run() -> Result<()> {
     use glium_sdl2::DisplayBuild;
+
+    unsafe {
+        ode::dInitODE();
+    }
 
     let sdl_ctx = sdl2::init().map_err(sdl_err).chain_err(|| "failed to initialize SDL")?;
     let sdl_video = sdl_ctx.video().map_err(sdl_err).chain_err(|| "failed to initialize video")?;
