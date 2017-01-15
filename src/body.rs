@@ -66,6 +66,7 @@ pub struct Body {
     pub texture: Rc<texture::Texture>,
     pub config: BodyConfig,
     pub ode_body: ode::dBodyID,
+    pub ode_geom: ode::dGeomID,
 }
 
 impl Body {

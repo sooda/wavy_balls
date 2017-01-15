@@ -49,15 +49,12 @@ impl World {
                     config: BodyConfig)
                     -> Rc<RefCell<Body>> {
 
-        if config.fixed {
-        }
-
         let ode_body = unsafe { ode::dBodyCreate(self.ode_world) };
 
         let ode_geom = match shape {
-            BodyShape::Sphere { radius } => {
-                unsafe { ode::dCreateSphere(self.ode_space, radius as f64) };
-            }
+            BodyShape::Sphere { radius } => unsafe {
+                ode::dCreateSphere(self.ode_space, radius as f64)
+            },
             BodyShape::TriangleSoup { vertices, indices } => {
                 unsafe {
                     let trimesh_data = ode::dGeomTriMeshDataCreate();
@@ -71,7 +68,24 @@ impl World {
                                                      4 * 3);
 
                     ode::dCreateTriMesh(self.ode_space, trimesh_data, None, None, None)
-                };
+
+                }
+            }
+        };
+
+        unsafe {
+            if !config.fixed {
+                let mut mass: ode::dMass = std::mem::zeroed();
+                ode::dMassSetSphere(&mut mass, config.density as f64, 1.0);
+            }
+        }
+
+        unsafe {
+            ode::dGeomSetBody(ode_geom, ode_body);
+            if config.fixed {
+                ode::dBodySetKinematic(ode_body);
+            } else {
+                ode::dBodySetDynamic(ode_body);
             }
         };
 
@@ -80,6 +94,7 @@ impl World {
             texture: texture,
             config: config,
             ode_body: ode_body,
+            ode_geom: ode_geom,
         }));
         self.bodies.push(body.clone());
         body
