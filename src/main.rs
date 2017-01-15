@@ -71,11 +71,13 @@ static VERTEX_SHADER: &'static str = r#"
     in vec2 tex_coord;
 
     out vec2 f_tex_coord;
+    out vec3 f_position;
 
     void main() {
         gl_Position = perspective * modelview * vec4(position, 1.0);
 
         f_tex_coord = tex_coord;
+        f_position = position;
     }
 "#;
 
@@ -83,11 +85,16 @@ static FRAGMENT_SHADER: &'static str = r#"
     #version 140
 
     in vec2 f_tex_coord;
+    in vec3 f_position;
 
     uniform sampler2D tex;
+    uniform vec3 player_pos;
 
     void main() {
-        gl_FragColor = texture(tex, f_tex_coord);
+        vec4 color = texture(tex, f_tex_coord);
+        if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
+            color.rgb = color.rgb * 0.4;
+        gl_FragColor = color;
     }
 "#;
 
@@ -419,6 +426,8 @@ fn run() -> Result<()> {
                   false)
             .chain_err(|| "failed to draw cubemap")?;
 
+        let player_pos = *player.borrow_mut().position().translation.as_ref();
+
         for body in world.rigid_bodies() {
             let body = body.borrow_mut();
             let model = body.position().to_homogeneous();
@@ -433,6 +442,7 @@ fn run() -> Result<()> {
                       perspective: *projection.as_ref(),
                       modelview: *modelview.as_ref(),
                       tex: tex,
+                      player_pos: player_pos,
                   },
                       &program,
                       true,
