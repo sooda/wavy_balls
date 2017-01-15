@@ -181,21 +181,22 @@ impl Mesh {
                                          surface: &mut S,
                                          uniforms: &U,
                                          program: &glium::Program,
-                                         depth_test: bool)
+                                         depth_test: bool,
+                                         alpha_dual_render: bool)
                                          -> Result<()> {
-        let params;
+        use glium::draw_parameters::{DepthTest, BackfaceCullingMode};
+
+        let mut params: glium::draw_parameters::DrawParameters = Default::default();
         if depth_test {
-            params = glium::DrawParameters {
-                depth: glium::Depth {
-                    test: glium::draw_parameters::DepthTest::IfLess,
-                    write: true,
-                    ..Default::default()
-                },
-                blend: glium::Blend::alpha_blending(),
+            params.depth = glium::Depth {
+                test: DepthTest::IfLess,
+                write: true,
                 ..Default::default()
             };
-        } else {
-            params = Default::default();
+        }
+        if alpha_dual_render {
+            params.blend = glium::Blend::alpha_blending();
+            params.backface_culling = BackfaceCullingMode::CullCounterClockwise;
         }
 
         surface.draw(&self.buffer,
@@ -203,6 +204,19 @@ impl Mesh {
                   program,
                   uniforms,
                   &params)
-            .chain_err(|| "drawcall failed")
+            .chain_err(|| "drawcall failed")?;
+
+        if alpha_dual_render {
+            params.backface_culling = BackfaceCullingMode::CullClockwise;
+
+            surface.draw(&self.buffer,
+                  &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+                  program,
+                  uniforms,
+                  &params)
+            .chain_err(|| "drawcall failed")?;
+        }
+
+        Ok(())
     }
 }

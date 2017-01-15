@@ -397,6 +397,7 @@ fn run() -> Result<()> {
                     tex: &envmap
                   },
                   &program,
+                  false,
                   false)
             .chain_err(|| "failed to draw cubemap")?;
 
@@ -416,7 +417,8 @@ fn run() -> Result<()> {
                       tex: tex,
                   },
                       &program,
-                      true)
+                      true,
+                      true) // FIXME only do alpha rendering for ball
                 .chain_err(|| "failed to draw mesh")?;
         }
 
