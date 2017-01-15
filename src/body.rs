@@ -104,20 +104,20 @@ impl Body {
             let pos = ode::dBodyGetPosition(self.ode_body);
             let rot = ode::dBodyGetRotation(self.ode_body);
             na::Matrix4::new(*rot.offset(0) as f32,
-                             *rot.offset(4) as f32,
-                             *rot.offset(8) as f32,
-                             0.0,
                              *rot.offset(1) as f32,
-                             *rot.offset(5) as f32,
-                             *rot.offset(9) as f32,
-                             0.0,
                              *rot.offset(2) as f32,
-                             *rot.offset(6) as f32,
-                             *rot.offset(10) as f32,
-                             0.0,
                              *pos.offset(0) as f32,
+                             *rot.offset(4) as f32,
+                             *rot.offset(5) as f32,
+                             *rot.offset(6) as f32,
                              *pos.offset(1) as f32,
+                             *rot.offset(8) as f32,
+                             *rot.offset(9) as f32,
+                             *rot.offset(10) as f32,
                              *pos.offset(2) as f32,
+                             0.0,
+                             0.0,
+                             0.0,
                              1.0)
         }
     }
