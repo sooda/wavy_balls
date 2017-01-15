@@ -60,6 +60,8 @@ use rand::Rng;
 use math::*;
 use audio::{AudioMixer, JumpSound, HitSound};
 
+use np::object::{STATIC_GROUP_ID, SENSOR_GROUP_ID};
+
 static VERTEX_SHADER: &'static str = r#"
     #version 140
 
@@ -207,12 +209,6 @@ fn run() -> Result<()> {
     }
 
     let mut input_state = input::InputState::new(sel_gcon);
-
-    let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
-                                           PI / 2.0,
-                                           0.01,
-                                           500.0f32)
-        .to_matrix();
 
     let mut mesh = vec![];
     mesh.push(Vertex { position: [0.0f32, 0.9f32] });
@@ -398,6 +394,32 @@ fn run() -> Result<()> {
         let camera_pos = player.borrow_mut().position().translation +
                          Vec3::new(0.0, 3.0, 5.0) * camera_rot;
 
+        let mut znear = 0.01f32;
+        {
+            let cam = camera_pos.to_point();
+            let ball = player.borrow_mut().position().translation.to_point();
+            let cam_to_ball = (ball - cam).normalize();
+            let ray = nc::query::Ray::new(cam, cam_to_ball);
+            let mut groups = nc::world::CollisionGroups::new();
+            // won't collide with statics with these set
+            groups.modify_membership(STATIC_GROUP_ID, false);
+            groups.modify_membership(SENSOR_GROUP_ID, false);
+            let groups = groups;
+            let collisions = world.phys_world().collision_world().interferences_with_ray(&ray, &groups);
+            let dep = (ball - cam).norm() - 1.0; // radius
+            let mut min = std::f32::MAX;
+            for collision in collisions {
+                let _obj = collision.0;
+                let intersection = collision.1;
+                min = min.min(intersection.toi);
+            }
+            let eps = 0.001;
+            // closer than depth to the player ball surface? cut everything to be able to see when
+            // camera goes inside walls or other objects
+            if min < dep - eps { znear = min; }
+        }
+        let znear = znear;
+
 
         force_x += force_mag * input.player.x;
         force_z += force_mag * input.player.y;
@@ -409,6 +431,12 @@ fn run() -> Result<()> {
         // angular momentum based control:
         player.borrow_mut()
             .apply_angular_momentum(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
+
+        let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
+                                               PI / 2.0,
+                                               znear,
+                                               500.0f32)
+            .to_matrix();
 
         // iso is rotation followed by translation, can't use it directly just like that
         let cam_rotate = Iso3::from_rotation_matrix(na::zero(), camera_rot).to_homogeneous();
