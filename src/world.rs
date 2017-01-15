@@ -17,29 +17,37 @@ struct NearCallbackContext {
     contact_group: ode::dJointGroupID,
 }
 
-extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
-                            o1: ode::dGeomID,
-                            o2: ode::dGeomID) {
-    unsafe {
-        let i = 0;
+unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
+                                   o1: ode::dGeomID,
+                                   o2: ode::dGeomID) {
+    let i = 0;
 
-        let b1 = ode::dGeomGetBody(o1);
-        let b2 = ode::dGeomGetBody(o2);
+    let b1 = ode::dGeomGetBody(o1);
+    let b2 = ode::dGeomGetBody(o2);
 
-        const MAX_CONTACTS: usize = 100;
-        let mut contact: [ode::dContact; MAX_CONTACTS] = std::mem::zeroed();
+    let ctx: &NearCallbackContext = &*(user_data as *const NearCallbackContext);
 
-        let numc = ode::dCollide(o1,
-                                 o2,
-                                 MAX_CONTACTS as i32,
-                                 &mut contact[0].geom,
-                                 std::mem::size_of::<ode::dContact>() as i32);
+    const MAX_CONTACTS: usize = 1024;
+    let mut contact: [ode::dContact; MAX_CONTACTS] = std::mem::zeroed();
 
-        for i in 0..numc {
-            // let id = ode::dJointCreateContact(self.
-        }
+    let numc = ode::dCollide(o1,
+                             o2,
+                             MAX_CONTACTS as i32,
+                             &mut contact[0].geom,
+                             std::mem::size_of::<ode::dContact>() as i32);
 
+    for i in 0..numc {
 
+        let contact = &mut contact[i as usize];
+        // friction
+
+        contact.surface.mu = 3.0;
+        contact.surface.bounce = 0.1;
+        contact.surface.mode |= ode::dContactRolling as i32;
+        contact.surface.mode |= ode::dContactBounce as i32;
+
+        let id = ode::dJointCreateContact(ctx.world, ctx.contact_group, contact);
+        ode::dJointAttach(id, b1, b2);
     }
 }
 
@@ -90,7 +98,7 @@ impl World {
             BodyShape::Sphere { radius } => unsafe {
                 ode::dCreateSphere(self.ode_space, radius as f64)
             },
-            BodyShape::TriangleSoup { vertices, indices } => {
+            BodyShape::TriangleSoup { ref vertices, ref indices } => {
                 unsafe {
                     let trimesh_data = ode::dGeomTriMeshDataCreate();
 
@@ -108,24 +116,23 @@ impl World {
             }
         };
 
+        println!("Create body {:?}", config);
         unsafe {
-            if !config.fixed {
-                let mut mass: ode::dMass = std::mem::zeroed();
-                ode::dMassSetSphere(&mut mass, config.density as f64, 1.0);
-            }
-        }
-
-        unsafe {
-            ode::dGeomSetBody(ode_geom, ode_body);
+            ode::dBodySetPosition(ode_body, 0.0, 0.0, 0.0);
             if config.fixed {
                 ode::dBodySetKinematic(ode_body);
             } else {
                 ode::dBodySetDynamic(ode_body);
+                let mut mass: ode::dMass = std::mem::zeroed();
+                ode::dMassSetSphere(&mut mass, config.density as f64, 1.0);
+                ode::dBodySetMass(ode_body, &mass);
             }
+            ode::dGeomSetBody(ode_geom, ode_body);
         };
 
         let body = Rc::new(RefCell::new(Body {
             mesh: mesh,
+            shape: shape,
             texture: texture,
             config: config,
             ode_body: ode_body,
@@ -143,8 +150,16 @@ impl World {
             self.leftover_dt -= PHYS_DT;
 
             unsafe {
-                ode::dSpaceCollide(self.ode_space, std::ptr::null_mut(), Some(near_callback));
+                let mut ctx = NearCallbackContext {
+                    world: self.ode_world,
+                    contact_group: self.ode_contact_group,
+                };
+                ode::dSpaceCollide(self.ode_space,
+                                   &mut ctx as *mut _ as *mut std::os::raw::c_void,
+                                   Some(near_callback));
+
                 ode::dWorldStep(self.ode_world, PHYS_DT as f64);
+
                 ode::dJointGroupEmpty(self.ode_contact_group);
             }
         }

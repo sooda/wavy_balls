@@ -357,7 +357,7 @@ fn run() -> Result<()> {
         let mut force_y = 0.0;
         let mut force_z = 0.0;
 
-        let force_mag = 0.3;
+        let force_mag = 10.0;
 
         let input = input_state.process_input(&mut event_pump);
 

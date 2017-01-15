@@ -43,6 +43,7 @@ impl BodyShape {
     }
 }
 
+#[derive(Debug)]
 pub struct BodyConfig {
     pub fixed: bool,
     pub friction: f32,
@@ -65,6 +66,7 @@ pub struct Body {
     pub mesh: Rc<mesh::Mesh>,
     pub texture: Rc<texture::Texture>,
     pub config: BodyConfig,
+    pub shape: BodyShape, // NOTE: holds memory of TriMesh!
     pub ode_body: ode::dBodyID,
     pub ode_geom: ode::dGeomID,
 }
