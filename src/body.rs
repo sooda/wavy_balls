@@ -4,6 +4,7 @@ use mesh;
 use na;
 use nc;
 use glium;
+use math::*;
 use errors::*;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -19,12 +20,16 @@ impl BodyShape {
         let (positions, _normals, _texcoord) =
             obj::load_obj(path).chain_err(|| "unable to load .obj")?;
 
+        Ok(BodyShape::from_vertices(positions))
+    }
+
+    pub fn from_vertices(positions: Vec<Pnt3>) -> BodyShape {
         let indices = (0usize..positions.len() / 3)
             .map(|i| na::Point3::<usize>::new(i * 3, i * 3 + 1, i * 3 + 2))
             .collect();
 
         let trimesh = nc::shape::TriMesh::new(Arc::new(positions), Arc::new(indices), None, None);
-        Ok(BodyShape::TriangleSoup(trimesh))
+        BodyShape::TriangleSoup(trimesh)
     }
 }
 
