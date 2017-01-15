@@ -48,16 +48,102 @@ impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for ContactH
                     panic!();
                 }
             };
-
             (self.callback)(o1, o2);
         }
     }
     fn handle_contact_stopped(&mut self,
-                              co1: &CollisionObject3<f32, WorldObject<f32>>,
-                              co2: &CollisionObject3<f32, WorldObject<f32>>) {
+                              co1: &CollisionObject3<f64, WorldObject<f64>>,
+                              co2: &CollisionObject3<f64, WorldObject<f64>>) {
     }
 }
 
+struct SmoothContactHandler {
+    rigid: Rc<RefCell<np::object::RigidBody<f64>>>,
+    fixed: Rc<RefCell<np::object::RigidBody<f64>>>,
+    num_touches: u8,
+}
+
+impl SmoothContactHandler {
+    pub fn new(rigid: Rc<RefCell<np::object::RigidBody<f64>>>,
+               fixed: Rc<RefCell<np::object::RigidBody<f64>>>)
+               -> SmoothContactHandler {
+        SmoothContactHandler {
+            rigid: rigid,
+            fixed: fixed,
+            num_touches: 0,
+        }
+    }
+    fn begin(&mut self,
+             rigid_co: &CollisionObject3<f64, WorldObject<f64>>,
+             fixed_co: &CollisionObject3<f64, WorldObject<f64>>) {
+        self.num_touches += 1;
+        println!("num touches {}", self.num_touches);
+    }
+    fn end(&mut self,
+           rigid_co: &CollisionObject3<f64, WorldObject<f64>>,
+           fixed_co: &CollisionObject3<f64, WorldObject<f64>>) {
+        if self.num_touches > 0 {
+            self.num_touches -= 1;
+        }
+        println!("num touches {}", self.num_touches);
+    }
+}
+
+impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f64>> for SmoothContactHandler {
+    fn handle_contact_started(&mut self,
+                              co1: &CollisionObject3<f64, WorldObject<f64>>,
+                              co2: &CollisionObject3<f64, WorldObject<f64>>,
+                              contacts: &nc::narrow_phase::ContactAlgorithm3<f64>) {
+        if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
+            let o1 = match co1.data {
+                WorldObject::RigidBody(ref handle) => handle,
+                _ => {
+                    panic!();
+                }
+            };
+            let o2 = match co2.data {
+                WorldObject::RigidBody(ref handle) => handle,
+                _ => {
+                    panic!();
+                }
+            };
+            let rigid_index = self.rigid.borrow_mut().index();
+            let fixed_index = self.fixed.borrow_mut().index();
+            if o1.borrow_mut().index() == rigid_index && o2.borrow_mut().index() == fixed_index {
+                self.begin(co1, co2);
+            } else if o1.borrow_mut().index() == fixed_index &&
+                      o2.borrow_mut().index() == rigid_index {
+                self.begin(co2, co1);
+            }
+        }
+    }
+    fn handle_contact_stopped(&mut self,
+                              co1: &CollisionObject3<f64, WorldObject<f64>>,
+                              co2: &CollisionObject3<f64, WorldObject<f64>>) {
+        if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
+            let o1 = match co1.data {
+                WorldObject::RigidBody(ref handle) => handle,
+                _ => {
+                    panic!();
+                }
+            };
+            let o2 = match co2.data {
+                WorldObject::RigidBody(ref handle) => handle,
+                _ => {
+                    panic!();
+                }
+            };
+            let rigid_index = self.rigid.borrow_mut().index();
+            let fixed_index = self.fixed.borrow_mut().index();
+            if o1.borrow_mut().index() == rigid_index && o2.borrow_mut().index() == fixed_index {
+                self.end(co1, co2);
+            } else if o1.borrow_mut().index() == fixed_index &&
+                      o2.borrow_mut().index() == rigid_index {
+                self.end(co2, co1);
+            }
+        }
+    }
+}
 impl World {
     pub fn new() -> World {
         let mut pw = np::world::World::new();
@@ -66,8 +152,8 @@ impl World {
         //        pw.constraints_solver().num_first_order_iter(),
         //         pw.constraints_solver().num_second_order_iter());
 
-        pw.constraints_solver().set_num_first_order_iter(20);
-        pw.constraints_solver().set_num_second_order_iter(20);
+        // pw.constraints_solver().set_num_first_order_iter(20);
+        // pw.constraints_solver().set_num_second_order_iter(20);
 
         World {
             phys_world: pw,

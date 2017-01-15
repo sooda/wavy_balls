@@ -222,6 +222,7 @@ fn run() -> Result<()> {
                    body::BodyShape::Sphere{radius: 1.0}, body::BodyConfig::default());
     player.borrow_mut().set_translation(Vec3::new(0.0, 3.0, 0.0));
     player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
+    //world.phys_world().add_ccd_to(&player, 0.000001, false);
 
     let landscape = world.add_body(
         Rc::new(mesh::Mesh::from_obj(&display, "mappi.obj").chain_err(|| "failed to load plane mesh")?),
@@ -229,7 +230,9 @@ fn run() -> Result<()> {
                                 body::BodyShape::from_obj("mappi.obj").unwrap(), body::BodyConfig{fixed: true, ..Default::default()});
     landscape.borrow_mut().set_translation(Vec3::new(0.0, 0.0, 0.0));
 
-    for i in 0..100i32 {
+    world.set_smooth_collision(&landscape, &player);
+
+    for i in 0..10i32 {
         let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
         eh_texture.clone(),
      body::BodyShape::Sphere{radius: 1.0}, body::BodyConfig::default());

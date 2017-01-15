@@ -7,6 +7,7 @@ use obj;
 
 use std::path::Path;
 
+use na;
 use math::*;
 use errors::*;
 
