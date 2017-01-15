@@ -29,10 +29,29 @@ impl BodyShape {
     }
 }
 
+pub struct BodyConfig {
+    pub fixed: bool,
+    pub friction: f32,
+    pub restitution: f32,
+    pub density: f32,
+}
+
+impl Default for BodyConfig {
+    fn default() -> Self {
+        BodyConfig {
+            fixed: false,
+            friction: 0.9,
+            restitution: 0.0,
+            density: 1.0,
+        }
+    }
+}
+
+
 pub struct Body {
     pub mesh: Rc<mesh::Mesh>,
-    pub fixed: bool,
     pub texture: Rc<glium::texture::Texture2d>,
+    pub config: BodyConfig,
 }
 
 impl Body {}

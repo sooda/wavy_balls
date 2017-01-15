@@ -1,4 +1,4 @@
-use body::{Body, BodyShape};
+use body::{Body, BodyShape, BodyConfig};
 use na;
 use nc;
 use np;
@@ -62,6 +62,12 @@ impl World {
     pub fn new() -> World {
         let mut pw = np::world::World::new();
         pw.set_gravity(Vec3::new(0.0, -GRAVITY, 0.0));
+        // println!("1st order {}, 2nd order {}",
+        //        pw.constraints_solver().num_first_order_iter(),
+        //         pw.constraints_solver().num_second_order_iter());
+
+        pw.constraints_solver().set_num_first_order_iter(20);
+        pw.constraints_solver().set_num_second_order_iter(20);
 
         World {
             phys_world: pw,
@@ -82,31 +88,29 @@ impl World {
                     mesh: Rc<mesh::Mesh>,
                     texture: Rc<glium::texture::Texture2d>,
                     shape: BodyShape,
-                    fixed: bool)
+                    config: BodyConfig)
                     -> Rc<RefCell<np::object::RigidBody<f32>>> {
 
-        let restitution = 0.01;
-        let friction = 0.7;
-
-        let mut rigid_body = if fixed {
+        let mut rigid_body = if config.fixed {
             match shape {
                 BodyShape::Sphere { radius } => {
                     np::object::RigidBody::new_static(nc::shape::Ball::new(radius),
-                                                      restitution,
-                                                      friction)
+                                                      config.restitution,
+                                                      config.friction)
                 }
                 BodyShape::TriangleSoup(ref trimesh) => {
-                    np::object::RigidBody::new_static(trimesh.clone(), restitution, friction)
+                    np::object::RigidBody::new_static(trimesh.clone(),
+                                                      config.restitution,
+                                                      config.friction)
                 }
             }
         } else {
-            let density = 1.0;
             match shape {
                 BodyShape::Sphere { radius } => {
                     np::object::RigidBody::new_dynamic(nc::shape::Ball::new(radius),
-                                                       density,
-                                                       restitution,
-                                                       friction)
+                                                       config.density,
+                                                       config.restitution,
+                                                       config.friction)
                 }
                 BodyShape::TriangleSoup(ref trimesh) => {
                     unimplemented!();
@@ -120,8 +124,8 @@ impl World {
 
         rigid_body.set_user_data(Some(Box::new(Body {
             mesh: mesh,
-            fixed: fixed,
             texture: texture,
+            config: config,
         })));
 
         self.phys_world.add_rigid_body(rigid_body)
@@ -129,16 +133,27 @@ impl World {
 
     // Advance the world state forwards by dt seconds
     pub fn step(&mut self, frame_dt: f32) {
-
         self.leftover_dt += frame_dt;
 
         while self.leftover_dt >= PHYS_DT {
             self.leftover_dt -= PHYS_DT;
+
+            // apply damping to all phys objects
+            for body in self.phys_world.rigid_bodies() {
+                let mut body = body.borrow_mut();
+
+                let ang = body.ang_vel();
+                body.set_ang_vel(ang * 0.9997);
+            }
+
             self.phys_world.step(PHYS_DT);
         }
     }
 
     pub fn rigid_bodies(&self) -> np::world::RigidBodies<f32> {
         self.phys_world.rigid_bodies()
+    }
+    pub fn phys_world(&mut self) -> &mut np::world::World<f32> {
+        &mut self.phys_world
     }
 }
