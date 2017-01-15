@@ -24,6 +24,7 @@ mod mesh;
 mod obj;
 mod texture;
 mod particle;
+mod input;
 
 mod errors {
     error_chain! {
@@ -156,6 +157,41 @@ fn run() -> Result<()> {
     let mut sdl_timer =
         sdl_ctx.timer().map_err(sdl_err).chain_err(|| "failed to initialize SDL timer")?;
 
+    let sdl_gcon = sdl_ctx.game_controller().unwrap();
+    let num_gcons = sdl_gcon.num_joysticks().unwrap();
+    let mut sel_gcon = None;
+    if num_gcons > 0 {
+        let mut buffer = String::new();
+        File::open("gamecontrollerdb.txt")
+            .chain_err(|| "failed to open gamecontrollerdb.txt")?
+            .read_to_string(&mut buffer);
+        for line in buffer.lines() {
+            sdl_gcon.add_mapping(line);
+        }
+
+        println!("{} game controllers detected.", num_gcons);
+
+        for id in 0..num_gcons {
+            let gcon = sdl_gcon.open(id).unwrap();
+            let gcon_name = if gcon.name().is_empty() {
+                "unknown".to_string()
+            } else {
+                gcon.name()
+            };
+            println!("Found game controller {}: {}", id, gcon_name);
+            if sel_gcon.is_none() {
+                println!("  Setting as active");
+                sel_gcon = Some(gcon);
+            }
+
+            if !sdl_gcon.is_game_controller(id) {
+                println!("Warning: Unknown controller model");
+            }
+        }
+    }
+
+    let mut input_state = input::InputState::new(sel_gcon);
+
     let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                            PI / 2.0,
                                            0.01,
@@ -279,92 +315,34 @@ fn run() -> Result<()> {
 
         let force_mag = 2.0;
 
-        for ev in event_pump.poll_iter() {
-            use sdl2::event::Event;
-            use sdl2::keyboard::Keycode;
+        let input = input_state.process_input(&mut event_pump);
 
-            match ev {
-                Event::Quit { .. } => break 'mainloop,
-                Event::KeyDown { keycode, .. } => {
-                    match keycode {
-                        Some(Keycode::Escape) => break 'mainloop,
-                        Some(Keycode::Return) => {
-                            match load_shader_prog(&display, "test") {
-                                Ok(prog) => state.program = prog,
-                                Err(bad) => {
-                                    println!("sorry: {}", bad);
-                                    for e in bad.iter().skip(1) {
-                                        println!("because: {}", e);
-                                    }
-                                }
-                            }
-                        }
-                        Some(Keycode::Space) if allow_jump => {
-                            force_y = 2.0 * GRAVITY * force_mag;
-                            times_jumped += 1;
-                            mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
-                                .chain_err(|| "failed to play jump sound")?;
-                            allow_jump = false;
-                        }
-                        Some(Keycode::R) => {
-                            camera.yaw = 0.0;
-                            camera.pitch = 0.0;
-                        }
-                        Some(Keycode::S) => player.borrow_mut().set_lin_vel(na::zero()),
-                        _ => (),
-                    }
-                }
-                Event::KeyUp { keycode, .. } => {
-                    match keycode {
-                        Some(Keycode::Space) => allow_jump = true,
-                        _ => (),
-                    }
-                }
-                _ => (),
-            }
+        if input.quit {
+            break 'mainloop;
         }
 
-        struct MouseDelta {
-            x: i32,
-            y: i32,
+        if input.jump && allow_jump {
+            force_y = 2.0 * GRAVITY * force_mag;
+            times_jumped += 1;
+            mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
+                .chain_err(|| "failed to play jump sound")?;
+            allow_jump = false;
+        } else if !input.jump {
+            allow_jump = true;
         }
 
-        let mouse = {
-            let m = event_pump.relative_mouse_state();
-            if m.left() {
-                MouseDelta {
-                    x: m.x(),
-                    y: m.y(),
-                }
-            } else {
-                MouseDelta { x: 0, y: 0 }
-            }
-        };
+        if input.reset_camera {
+            camera.yaw = 0.0;
+            camera.pitch = 0.0;
+        }
 
-        camera.yaw += mouse.x as f32 / 100.0;
-        camera.pitch += mouse.y as f32 / 100.0;
+        if input.stop {
+            player.borrow_mut().set_lin_vel(na::zero());
+        }
+
+        camera.yaw += input.camera.x / 10.0;
+        camera.pitch += input.camera.y / 10.0;
         camera.pitch = na::clamp(camera.pitch, -PI / 2.0, PI / 2.0);
-
-        struct Input {
-            left: bool,
-            right: bool,
-            up: bool,
-            down: bool,
-        }
-        let input = {
-            use sdl2::keyboard::Scancode::*;
-
-            let kb = event_pump.keyboard_state();
-
-            Input {
-                left: kb.is_scancode_pressed(Left),
-                right: kb.is_scancode_pressed(Right),
-                up: kb.is_scancode_pressed(Up),
-                down: kb.is_scancode_pressed(Down),
-            }
-        };
-
-
 
         if curr_t - last_particle > 0.15 {
             last_particle = curr_t;
@@ -396,18 +374,8 @@ fn run() -> Result<()> {
                          Vec3::new(0.0, 3.0, 5.0) * camera_rot;
 
 
-        if input.left {
-            force_x -= force_mag;
-        }
-        if input.right {
-            force_x += force_mag;
-        }
-        if input.up {
-            force_z -= force_mag;
-        }
-        if input.down {
-            force_z += force_mag;
-        }
+        force_x += force_mag * input.player.x;
+        force_z += force_mag * input.player.y;
 
         // impulse based:
         player.borrow_mut()

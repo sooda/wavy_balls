@@ -191,6 +191,7 @@ impl Mesh {
                     write: true,
                     ..Default::default()
                 },
+                blend: glium::Blend::alpha_blending(),
                 ..Default::default()
             };
         } else {
