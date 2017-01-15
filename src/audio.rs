@@ -65,7 +65,7 @@ impl<'a> AudioMixer<'a> {
 
         open_audio(44100, AUDIO_S16LSB, 2, 2048).map_err(sdl_err)
             .chain_err(|| "failed to open SDL audio")?;
-        allocate_channels(16);
+        allocate_channels(128);
 
         let music =
             Music::from_file(Path::new(music_filename)).map_err(sdl_err)
