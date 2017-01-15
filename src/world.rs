@@ -52,20 +52,20 @@ impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for ContactH
         }
     }
     fn handle_contact_stopped(&mut self,
-                              co1: &CollisionObject3<f64, WorldObject<f64>>,
-                              co2: &CollisionObject3<f64, WorldObject<f64>>) {
+                              co1: &CollisionObject3<f32, WorldObject<f32>>,
+                              co2: &CollisionObject3<f32, WorldObject<f32>>) {
     }
 }
 
 struct SmoothContactHandler {
-    rigid: Rc<RefCell<np::object::RigidBody<f64>>>,
-    fixed: Rc<RefCell<np::object::RigidBody<f64>>>,
+    rigid: Rc<RefCell<np::object::RigidBody<f32>>>,
+    fixed: Rc<RefCell<np::object::RigidBody<f32>>>,
     num_touches: u8,
 }
 
 impl SmoothContactHandler {
-    pub fn new(rigid: Rc<RefCell<np::object::RigidBody<f64>>>,
-               fixed: Rc<RefCell<np::object::RigidBody<f64>>>)
+    pub fn new(rigid: Rc<RefCell<np::object::RigidBody<f32>>>,
+               fixed: Rc<RefCell<np::object::RigidBody<f32>>>)
                -> SmoothContactHandler {
         SmoothContactHandler {
             rigid: rigid,
@@ -74,14 +74,14 @@ impl SmoothContactHandler {
         }
     }
     fn begin(&mut self,
-             rigid_co: &CollisionObject3<f64, WorldObject<f64>>,
-             fixed_co: &CollisionObject3<f64, WorldObject<f64>>) {
+             rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
+             fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
         self.num_touches += 1;
         println!("num touches {}", self.num_touches);
     }
     fn end(&mut self,
-           rigid_co: &CollisionObject3<f64, WorldObject<f64>>,
-           fixed_co: &CollisionObject3<f64, WorldObject<f64>>) {
+           rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
+           fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
         if self.num_touches > 0 {
             self.num_touches -= 1;
         }
@@ -89,11 +89,11 @@ impl SmoothContactHandler {
     }
 }
 
-impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f64>> for SmoothContactHandler {
+impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for SmoothContactHandler {
     fn handle_contact_started(&mut self,
-                              co1: &CollisionObject3<f64, WorldObject<f64>>,
-                              co2: &CollisionObject3<f64, WorldObject<f64>>,
-                              contacts: &nc::narrow_phase::ContactAlgorithm3<f64>) {
+                              co1: &CollisionObject3<f32, WorldObject<f32>>,
+                              co2: &CollisionObject3<f32, WorldObject<f32>>,
+                              contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
         if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
             let o1 = match co1.data {
                 WorldObject::RigidBody(ref handle) => handle,
@@ -118,8 +118,8 @@ impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f64>> for SmoothCo
         }
     }
     fn handle_contact_stopped(&mut self,
-                              co1: &CollisionObject3<f64, WorldObject<f64>>,
-                              co2: &CollisionObject3<f64, WorldObject<f64>>) {
+                              co1: &CollisionObject3<f32, WorldObject<f32>>,
+                              co2: &CollisionObject3<f32, WorldObject<f32>>) {
         if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
             let o1 = match co1.data {
                 WorldObject::RigidBody(ref handle) => handle,
@@ -151,7 +151,6 @@ impl World {
         // println!("1st order {}, 2nd order {}",
         //        pw.constraints_solver().num_first_order_iter(),
         //         pw.constraints_solver().num_second_order_iter());
-
         // pw.constraints_solver().set_num_first_order_iter(20);
         // pw.constraints_solver().set_num_second_order_iter(20);
 
@@ -159,6 +158,13 @@ impl World {
             phys_world: pw,
             leftover_dt: 0.0,
         }
+    }
+
+    pub fn set_smooth_collision(&mut self,
+                                rigid: &Rc<RefCell<np::object::RigidBody<f32>>>,
+                                fixed: &Rc<RefCell<np::object::RigidBody<f32>>>) {
+        let handler = SmoothContactHandler::new(rigid.clone(), fixed.clone());
+        self.phys_world.register_contact_handler("smooth_handler", handler);
     }
 
     pub fn add_contact_handler<F>(&mut self, handler: F)
@@ -213,6 +219,8 @@ impl World {
             texture: texture,
             config: config,
         })));
+
+        rigid_body.set_margin(0.5);
 
         self.phys_world.add_rigid_body(rigid_body)
     }

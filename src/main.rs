@@ -219,10 +219,16 @@ fn run() -> Result<()> {
 
     let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
         eh_texture.clone(),
-                   body::BodyShape::Sphere{radius: 1.0}, body::BodyConfig::default());
+                   body::BodyShape::Sphere{radius: 1.0},
+                   body::BodyConfig{
+                       friction: 3.0,
+                       density: 0.1,
+                        restitution: 0.0,
+                       ..body::BodyConfig::default() }
+    );
     player.borrow_mut().set_translation(Vec3::new(0.0, 3.0, 0.0));
     player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
-    //world.phys_world().add_ccd_to(&player, 0.000001, false);
+    world.phys_world().add_ccd_to(&player, 0.000001, false);
 
     let landscape = world.add_body(
         Rc::new(mesh::Mesh::from_obj(&display, "mappi.obj").chain_err(|| "failed to load plane mesh")?),
@@ -316,7 +322,7 @@ fn run() -> Result<()> {
         let mut force_y = 0.0;
         let mut force_z = 0.0;
 
-        let force_mag = 2.0;
+        let force_mag = 0.3;
 
         let input = input_state.process_input(&mut event_pump);
 

@@ -211,11 +211,11 @@ impl Mesh {
             params.backface_culling = BackfaceCullingMode::CullClockwise;
 
             surface.draw(&self.buffer,
-                  &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-                  program,
-                  uniforms,
-                  &params)
-            .chain_err(|| "drawcall failed")?;
+                      &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+                      program,
+                      uniforms,
+                      &params)
+                .chain_err(|| "drawcall failed")?;
         }
 
         Ok(())
