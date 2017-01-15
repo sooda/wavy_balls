@@ -6,6 +6,9 @@ pub enum Shape {
     Flat(f32),
     Left(f32, f32),
     Right(f32, f32),
+    Up(f32, f32),
+    Down(f32, f32),
+    LeftUp(f32, f32),
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -103,6 +106,12 @@ pub fn load_level_from_desc(desc: &str) -> Worldgen {
                                                args.get("heightb").unwrap().parse().unwrap()),
                             "r" => Shape::Right(args.get("height").unwrap().parse().unwrap(),
                                                 args.get("heightb").unwrap().parse().unwrap()),
+                            "u" => Shape::Up(args.get("height").unwrap().parse().unwrap(),
+                                                args.get("heightb").unwrap().parse().unwrap()),
+                            "d" => Shape::Down(args.get("height").unwrap().parse().unwrap(),
+                                                args.get("heightb").unwrap().parse().unwrap()),
+                            "lu" => Shape::LeftUp(args.get("height").unwrap().parse().unwrap(),
+                                                args.get("heightb").unwrap().parse().unwrap()),
                             s => panic!("invalid tile shape {}", s)
                         }
                     };
@@ -165,6 +174,9 @@ pub fn generate_3d_vertices(world: &Worldgen) -> (Vec<Pnt3>, Vec<Vec3>, Vec<Pnt2
             let (vy_0, vy_1, vy_2, vy_3) = match tile.shape {
                 Shape::Left(d,u)  => (d,d,u,u),
                 Shape::Right(d,u) => (u,u,d,d),
+                Shape::Up(d,u)    => (d,u,d,u),
+                Shape::Down(d,u)  => (u,d,u,d),
+                Shape::LeftUp(d,u) => (d,d,d,u),
                 Shape::Flat(h)    => (h,h,h,h),
             };
 
