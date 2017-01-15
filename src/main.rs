@@ -246,12 +246,14 @@ fn run() -> Result<()> {
     let worldgen = worldgen::load_level_from_desc(r#"
 block ch=# height=20.0
 block ch=. height=0.1
+block ch=l height=0.1 heightb=2.5 shape=l
+block ch=r height=0.1 heightb=2.5 shape=r
 tiles
 ########################
 #......................#
 #......................#
-#......................#
-#......................#
+#..........l..r........#
+#..........l..r........#
 #......................#
 #......................#
 #......................#
