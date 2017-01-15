@@ -14,7 +14,7 @@ use std::path::Path;
 pub enum BodyShape {
     Sphere { radius: f32 },
     TriangleSoup {
-        vertices: Vec<f32>,
+        vertices: Vec<f64>,
         indices: Vec<u32>,
     },
 }
@@ -31,9 +31,9 @@ impl BodyShape {
     pub fn from_vertices(positions: Vec<Pnt3>) -> Result<BodyShape> {
         let mut vertices = Vec::with_capacity(positions.len() * 3);
         for v in positions.iter() {
-            vertices.push(v.x);
-            vertices.push(v.y);
-            vertices.push(v.z);
+            vertices.push(v.x as f64);
+            vertices.push(v.y as f64);
+            vertices.push(v.z as f64);
         }
         let indices = (0u32..positions.len() as u32).collect();
         Ok(BodyShape::TriangleSoup {

@@ -12,9 +12,43 @@ use texture;
 use nc::world::CollisionObject3;
 use np::object::{WorldObject, RigidBodyHandle};
 
+struct NearCallbackContext {
+    world: ode::dWorldID,
+    contact_group: ode::dJointGroupID,
+}
+
+extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
+                            o1: ode::dGeomID,
+                            o2: ode::dGeomID) {
+    unsafe {
+        let i = 0;
+
+        let b1 = ode::dGeomGetBody(o1);
+        let b2 = ode::dGeomGetBody(o2);
+
+        const MAX_CONTACTS: usize = 100;
+        let mut contact: [ode::dContact; MAX_CONTACTS] = std::mem::zeroed();
+
+        let numc = ode::dCollide(o1,
+                                 o2,
+                                 MAX_CONTACTS as i32,
+                                 &mut contact[0].geom,
+                                 std::mem::size_of::<ode::dContact>() as i32);
+
+        for i in 0..numc {
+            // let id = ode::dJointCreateContact(self.
+        }
+
+
+    }
+}
+
+
+
 pub struct World {
     ode_world: ode::dWorldID,
     ode_space: ode::dSpaceID,
+    ode_contact_group: ode::dJointGroupID,
     bodies: Vec<Rc<RefCell<Body>>>,
     leftover_dt: f32,
 }
@@ -32,6 +66,7 @@ impl World {
         World {
             ode_world: ode_world,
             ode_space: ode_space,
+            ode_contact_group: unsafe { ode::dJointGroupCreate(0) },
             leftover_dt: 0.0,
             bodies: Vec::new(),
         }
@@ -62,7 +97,7 @@ impl World {
                     ode::dGeomTriMeshDataBuildDouble(trimesh_data,
                                                      vertices.as_ptr() as *const std::os::raw::c_void,
                                                      8 * 3, // vertex stride
-                                                     vertices.len() as i32,
+                                                     vertices.len() as i32 / 3,
                                                      indices.as_ptr() as *const std::os::raw::c_void,
                                                      indices.len() as i32,
                                                      4 * 3);
@@ -108,7 +143,9 @@ impl World {
             self.leftover_dt -= PHYS_DT;
 
             unsafe {
+                ode::dSpaceCollide(self.ode_space, std::ptr::null_mut(), Some(near_callback));
                 ode::dWorldStep(self.ode_world, PHYS_DT as f64);
+                ode::dJointGroupEmpty(self.ode_contact_group);
             }
         }
     }
