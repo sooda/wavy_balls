@@ -53,12 +53,13 @@ impl Mesh {
     }
 
     pub fn for_cubemap<F: Facade>(f: &F) -> Result<Mesh> {
-        let fr = -1.0;
-        let bk = 1.0;
-        let l = -1.0;
-        let r = 1.0;
-        let d = -1.0;
-        let u = 1.0;
+        let scale = 10.0;
+        let fr = -scale;
+        let bk = scale;
+        let l = -scale;
+        let r = scale;
+        let d = -scale;
+        let u = scale;
 
         let positions = vec![// -X
                              Pnt3::new(l, u, bk),
