@@ -1,6 +1,8 @@
 use body::{Body, BodyShape, BodyConfig};
 use nc;
 use np;
+use ode;
+use std;
 use math::*;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -11,168 +13,33 @@ use nc::world::CollisionObject3;
 use np::object::{WorldObject, RigidBodyHandle};
 
 pub struct World {
-    phys_world: np::world::World<f32>,
+    ode_world: ode::dWorldID,
+    ode_space: ode::dSpaceID,
+    bodies: Vec<Rc<RefCell<Body>>>,
     leftover_dt: f32,
-}
-
-struct ContactHandler {
-    callback: Box<FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>)>,
-}
-
-impl ContactHandler {
-    pub fn new<F>(callback: F) -> ContactHandler
-        where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
-    {
-        ContactHandler { callback: Box::new(callback) }
-    }
-}
-
-impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for ContactHandler {
-    fn handle_contact_started(&mut self,
-                              co1: &CollisionObject3<f32, WorldObject<f32>>,
-                              co2: &CollisionObject3<f32, WorldObject<f32>>,
-                              _contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
-
-        if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
-
-            let o1 = match co1.data {
-                WorldObject::RigidBody(ref handle) => handle,
-                _ => {
-                    panic!();
-                }
-            };
-            let o2 = match co2.data {
-                WorldObject::RigidBody(ref handle) => handle,
-                _ => {
-                    panic!();
-                }
-            };
-            (self.callback)(o1, o2);
-        }
-    }
-    fn handle_contact_stopped(&mut self,
-                              _co1: &CollisionObject3<f32, WorldObject<f32>>,
-                              _co2: &CollisionObject3<f32, WorldObject<f32>>) {
-    }
-}
-
-struct SmoothContactHandler {
-    rigid: Rc<RefCell<np::object::RigidBody<f32>>>,
-    fixed: Rc<RefCell<np::object::RigidBody<f32>>>,
-    num_touches: u8,
-}
-
-impl SmoothContactHandler {
-    pub fn new(rigid: Rc<RefCell<np::object::RigidBody<f32>>>,
-               fixed: Rc<RefCell<np::object::RigidBody<f32>>>)
-               -> SmoothContactHandler {
-        SmoothContactHandler {
-            rigid: rigid,
-            fixed: fixed,
-            num_touches: 0,
-        }
-    }
-    fn begin(&mut self,
-             _rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
-             _fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
-        self.num_touches += 1;
-        println!("num touches {}", self.num_touches);
-    }
-    fn end(&mut self,
-           _rigid_co: &CollisionObject3<f32, WorldObject<f32>>,
-           _fixed_co: &CollisionObject3<f32, WorldObject<f32>>) {
-        if self.num_touches > 0 {
-            self.num_touches -= 1;
-        }
-        println!("num touches {}", self.num_touches);
-    }
-}
-
-impl nc::narrow_phase::ContactHandler<Pnt3, Iso3, WorldObject<f32>> for SmoothContactHandler {
-    fn handle_contact_started(&mut self,
-                              co1: &CollisionObject3<f32, WorldObject<f32>>,
-                              co2: &CollisionObject3<f32, WorldObject<f32>>,
-                              _contacts: &nc::narrow_phase::ContactAlgorithm3<f32>) {
-        if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
-            let o1 = match co1.data {
-                WorldObject::RigidBody(ref handle) => handle,
-                _ => {
-                    panic!();
-                }
-            };
-            let o2 = match co2.data {
-                WorldObject::RigidBody(ref handle) => handle,
-                _ => {
-                    panic!();
-                }
-            };
-            let rigid_index = self.rigid.borrow_mut().index();
-            let fixed_index = self.fixed.borrow_mut().index();
-            if o1.borrow_mut().index() == rigid_index && o2.borrow_mut().index() == fixed_index {
-                self.begin(co1, co2);
-            } else if o1.borrow_mut().index() == fixed_index &&
-                      o2.borrow_mut().index() == rigid_index {
-                self.begin(co2, co1);
-            }
-        }
-    }
-    fn handle_contact_stopped(&mut self,
-                              co1: &CollisionObject3<f32, WorldObject<f32>>,
-                              co2: &CollisionObject3<f32, WorldObject<f32>>) {
-        if co1.data.is_rigid_body() && co2.data.is_rigid_body() {
-            let o1 = match co1.data {
-                WorldObject::RigidBody(ref handle) => handle,
-                _ => {
-                    panic!();
-                }
-            };
-            let o2 = match co2.data {
-                WorldObject::RigidBody(ref handle) => handle,
-                _ => {
-                    panic!();
-                }
-            };
-            let rigid_index = self.rigid.borrow_mut().index();
-            let fixed_index = self.fixed.borrow_mut().index();
-            if o1.borrow_mut().index() == rigid_index && o2.borrow_mut().index() == fixed_index {
-                self.end(co1, co2);
-            } else if o1.borrow_mut().index() == fixed_index &&
-                      o2.borrow_mut().index() == rigid_index {
-                self.end(co2, co1);
-            }
-        }
-    }
 }
 impl World {
     pub fn new() -> World {
-        let mut pw = np::world::World::new();
-        pw.set_gravity(Vec3::new(0.0, -GRAVITY, 0.0));
-        // println!("1st order {}, 2nd order {}",
-        //        pw.constraints_solver().num_first_order_iter(),
-        //         pw.constraints_solver().num_second_order_iter());
-        // pw.constraints_solver().set_num_first_order_iter(20);
-        // pw.constraints_solver().set_num_second_order_iter(20);
+
+        let ode_world = unsafe {
+            let w = ode::dWorldCreate();
+            ode::dWorldSetGravity(w, 0.0, -GRAVITY as f64, 0.0);
+            w
+        };
+
+        let ode_space = unsafe { ode::dHashSpaceCreate(std::ptr::null_mut()) };
 
         World {
-            phys_world: pw,
+            ode_world: ode_world,
+            ode_space: ode_space,
             leftover_dt: 0.0,
+            bodies: Vec::new(),
         }
-    }
-
-    pub fn set_smooth_collision(&mut self,
-                                rigid: &Rc<RefCell<np::object::RigidBody<f32>>>,
-                                fixed: &Rc<RefCell<np::object::RigidBody<f32>>>) {
-        let handler = SmoothContactHandler::new(rigid.clone(), fixed.clone());
-        self.phys_world.register_contact_handler("smooth_handler", handler);
     }
 
     pub fn add_contact_handler<F>(&mut self, handler: F)
         where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
     {
-
-        let handler = ContactHandler::new(handler);
-        self.phys_world.register_contact_handler("default_handler", handler);
-
     }
 
     pub fn add_body(&mut self,
@@ -180,48 +47,42 @@ impl World {
                     texture: Rc<texture::Texture>,
                     shape: BodyShape,
                     config: BodyConfig)
-                    -> Rc<RefCell<np::object::RigidBody<f32>>> {
+                    -> Rc<RefCell<Body>> {
 
-        let mut rigid_body = if config.fixed {
-            match shape {
-                BodyShape::Sphere { radius } => {
-                    np::object::RigidBody::new_static(nc::shape::Ball::new(radius),
-                                                      config.restitution,
-                                                      config.friction)
-                }
-                BodyShape::TriangleSoup(ref trimesh) => {
-                    np::object::RigidBody::new_static(trimesh.clone(),
-                                                      config.restitution,
-                                                      config.friction)
-                }
+        if config.fixed {
+        }
+
+        let ode_body = unsafe { ode::dBodyCreate(self.ode_world) };
+
+        let ode_geom = match shape {
+            BodyShape::Sphere { radius } => {
+                unsafe { ode::dCreateSphere(self.ode_space, radius as f64) };
             }
-        } else {
-            match shape {
-                BodyShape::Sphere { radius } => {
-                    np::object::RigidBody::new_dynamic(nc::shape::Ball::new(radius),
-                                                       config.density,
-                                                       config.restitution,
-                                                       config.friction)
-                }
-                BodyShape::TriangleSoup(ref _trimesh) => {
-                    unimplemented!();
-                    // np::object::RigidBody::new_dynamic(trimesh.clone(),
-                    // density,
-                    // restitution,
-                    // friction)
-                }
+            BodyShape::TriangleSoup { vertices, indices } => {
+                unsafe {
+                    let trimesh_data = ode::dGeomTriMeshDataCreate();
+
+                    ode::dGeomTriMeshDataBuildDouble(trimesh_data,
+                                                     vertices.as_ptr() as *const std::os::raw::c_void,
+                                                     8 * 3, // vertex stride
+                                                     vertices.len() as i32,
+                                                     indices.as_ptr() as *const std::os::raw::c_void,
+                                                     indices.len() as i32,
+                                                     4 * 3);
+
+                    ode::dCreateTriMesh(self.ode_space, trimesh_data, None, None, None)
+                };
             }
         };
 
-        rigid_body.set_user_data(Some(Box::new(Body {
+        let body = Rc::new(RefCell::new(Body {
             mesh: mesh,
             texture: texture,
             config: config,
-        })));
-
-        rigid_body.set_margin(0.5);
-
-        self.phys_world.add_rigid_body(rigid_body)
+            ode_body: ode_body,
+        }));
+        self.bodies.push(body.clone());
+        body
     }
 
     // Advance the world state forwards by dt seconds
@@ -231,22 +92,12 @@ impl World {
         while self.leftover_dt >= PHYS_DT {
             self.leftover_dt -= PHYS_DT;
 
-            // apply damping to all phys objects
-            for body in self.phys_world.rigid_bodies() {
-                let mut body = body.borrow_mut();
-
-                let ang = body.ang_vel();
-                body.set_ang_vel(ang * 0.9997);
+            unsafe {
+                ode::dWorldStep(self.ode_world, PHYS_DT as f64);
             }
-
-            self.phys_world.step(PHYS_DT);
         }
     }
-
-    pub fn rigid_bodies(&self) -> np::world::RigidBodies<f32> {
-        self.phys_world.rigid_bodies()
-    }
-    pub fn phys_world(&mut self) -> &mut np::world::World<f32> {
-        &mut self.phys_world
+    pub fn bodies<'a>(&'a mut self) -> &'a mut Vec<Rc<RefCell<Body>>> {
+        &mut self.bodies
     }
 }

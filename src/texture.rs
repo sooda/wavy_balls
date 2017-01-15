@@ -24,9 +24,7 @@ impl<'a> AsUniformValue for &'a Texture {
     }
 }
 
-pub fn load_texture<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F,
-                                                        path: &P)
-                                                        -> Result<Texture> {
+pub fn load_texture<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F, path: &P) -> Result<Texture> {
     let raw = self::load_image(path)?;
 
     glium::texture::Texture2d::new(facade, raw)
@@ -35,8 +33,8 @@ pub fn load_texture<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F,
 }
 
 pub fn load_texture_array<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F,
-                                                              paths: &[&P]) -> Result<Texture>
-{
+                                                              paths: &[&P])
+                                                              -> Result<Texture> {
     let raw: Result<Vec<RawImage2d<'static, u8>>> = paths.iter().map(|&p| load_image(p)).collect();
     let raw = raw?;
 
@@ -45,8 +43,7 @@ pub fn load_texture_array<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F,
         .chain_err(|| "failed to load texture to GPU")
 }
 
-pub fn load_image<P: AsRef<Path> + ?Sized>(path: &P)
-                                           -> Result<RawImage2d<'static, u8>> {
+pub fn load_image<P: AsRef<Path> + ?Sized>(path: &P) -> Result<RawImage2d<'static, u8>> {
     let image = image::open(path).chain_err(|| "failed to load image file")?.to_rgba();
     let dims = image.dimensions();
 

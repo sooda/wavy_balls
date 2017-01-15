@@ -68,9 +68,8 @@ impl<'a> AudioMixer<'a> {
             .chain_err(|| "failed to open SDL audio")?;
         allocate_channels(128);
 
-        let music =
-            Music::from_file(Path::new(music_filename)).map_err(sdl_err)
-                .chain_err(|| "failed to load background music")?;
+        let music = Music::from_file(Path::new(music_filename)).map_err(sdl_err)
+            .chain_err(|| "failed to load background music")?;
 
         if std::env::var("NO_MUSIC").is_err() {
             music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;

@@ -19,7 +19,7 @@ extern crate inotify;
 extern crate rand;
 
 #[link(name = "ode")]
-extern { }
+extern "C" {}
 
 mod audio;
 mod math;
@@ -196,8 +196,7 @@ fn run() -> Result<()> {
     let mut sel_gcon = None;
     if num_gcons > 0 {
         let mut buffer = String::new();
-        File::open("gamecontrollerdb.txt")
-            .chain_err(|| "failed to open gamecontrollerdb.txt")?
+        File::open("gamecontrollerdb.txt").chain_err(|| "failed to open gamecontrollerdb.txt")?
             .read_to_string(&mut buffer)
             .chain_err(|| "failed to read gamecontrollerdb.txt")?;
         for line in buffer.lines() {
@@ -249,7 +248,7 @@ fn run() -> Result<()> {
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
     let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png"]).chain_err(|| "failed to load landscape texture")?);
 
-    let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
+    let mut player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
         eh_texture.clone(),
                    body::BodyShape::Sphere{radius: 1.0},
                    body::BodyConfig{
@@ -258,26 +257,24 @@ fn run() -> Result<()> {
                         restitution: 0.0,
                        ..body::BodyConfig::default() }
     );
-    player.borrow_mut().set_translation(Vec3::new(50.0, 3.0, 50.0));
-    player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
-    world.phys_world().add_ccd_to(&player, 0.000001, false);
+    player.borrow_mut().set_position(Vec3::new(0.0, 3.0, 0.0));
 
     let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
         .chain_err(|| "failed to load level mesh for draw")?;
-    let world_shape = body::BodyShape::from_obj("mappi.obj")
-        .chain_err(|| "failed to load level mesh for phys")?;
+    let world_shape =
+        body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?;
 
-    let landscape = world.add_body(Rc::new(world_mesh), landscape_texture, world_shape,
-                                   body::BodyConfig{ fixed: true, ..Default::default() });
-    landscape.borrow_mut().set_translation(Vec3::new(0.0, 0.0, 0.0));
-
-    world.set_smooth_collision(&landscape, &player);
+    let landscape = world.add_body(Rc::new(world_mesh),
+                                   landscape_texture,
+                                   world_shape,
+                                   body::BodyConfig { fixed: true, ..Default::default() });
+    landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
 
     for i in 0..10i32 {
         let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
         eh_texture.clone(),
      body::BodyShape::Sphere{radius: 1.0}, body::BodyConfig::default());
-        ball.borrow_mut().set_translation(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
+        ball.borrow_mut().set_position(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
     }
 
     let envmap = texture::load_texture(&display, "cubemap.jpg").chain_err(|| "failed to load environment map")?;
@@ -290,8 +287,8 @@ fn run() -> Result<()> {
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
-    let program_array = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER_ARRAY, None)
-        .unwrap();
+    let program_array =
+        glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER_ARRAY, None).unwrap();
 
     let mut ino = INotify::init().chain_err(|| "failed to initialize inotify")?;
 
@@ -304,21 +301,21 @@ fn run() -> Result<()> {
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
 
     {
+        /*
         let player = player.clone();
         let mixer = mixer.clone();
         let hit_sound = hit_sound.clone();
         let handler = move |o1: &np::object::RigidBodyHandle<f32>,
                                 o2: &np::object::RigidBodyHandle<f32>| {
-            let oi1: isize = o1.borrow_mut().index();
-            let oi2: isize = o2.borrow_mut().index();
-            let plri: isize = player.borrow_mut().index();
+            let oi1: isize = o1.index();
+            let oi2: isize = o2.index();
+            let plri: isize = player.index();
             if oi1 == plri || oi2 == plri {
                 // bleh, can't ".chain_err(foo)?" this
                 mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
             }
         };
-
-        world.add_contact_handler(handler);
+        world.add_contact_handler(handler);*/
     }
 
     let mut allow_jump = true;
@@ -384,7 +381,7 @@ fn run() -> Result<()> {
         }
 
         if input.stop {
-            player.borrow_mut().set_lin_vel(na::zero());
+            player.borrow_mut().set_linear_velocity(na::zero());
         }
 
         camera.yaw += input.camera.x / 10.0;
@@ -417,11 +414,9 @@ fn run() -> Result<()> {
 
         let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
                          Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
-        let camera_pos = player.borrow_mut().position().translation +
-                         Vec3::new(0.0, 3.0, 5.0) * camera_rot;
-
+        let camera_pos = player.borrow_mut().get_position() + Vec3::new(0.0, 3.0, 5.0) * camera_rot;
         let mut znear = 0.01f32;
-        {
+        /*{
             let cam = camera_pos.to_point();
             let ball = player.borrow_mut().position().translation.to_point();
             let cam_to_ball = (ball - cam).normalize();
@@ -443,20 +438,18 @@ fn run() -> Result<()> {
             // closer than depth to the player ball surface? cut everything to be able to see when
             // camera goes inside walls or other objects
             if min < dep - eps { znear = min; }
-        }
+        }*/
         let znear = znear;
-
 
         force_x += force_mag * input.player.x;
         force_z += force_mag * input.player.y;
 
         // impulse based:
-        player.borrow_mut()
-            .apply_central_impulse(Vec3::new(0.0, force_y, 0.0) * camera_rot);
+        // player
+        //    .apply_central_impulse(Vec3::new(0.0, force_y, 0.0) * camera_rot);
 
         // angular momentum based control:
-        player.borrow_mut()
-            .apply_angular_momentum(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
+        player.borrow_mut().add_torque(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
 
         let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                                PI / 2.0,
@@ -480,28 +473,27 @@ fn run() -> Result<()> {
                   false)
             .chain_err(|| "failed to draw cubemap")?;
 
-        let player_pos = *player.borrow_mut().position().translation.as_ref();
-
-        for body in world.rigid_bodies() {
-            let body = body.borrow_mut();
-            let model = body.position().to_homogeneous();
+        let player_pos = player.borrow_mut().get_position();
+        for body in world.bodies() {
+            let model = body.borrow_mut().get_posrot_homogeneous();
             let modelview = cam_view * model;
 
-            let body = body.user_data().unwrap().downcast_ref::<body::Body>().unwrap();
+            let body::Body { ref mesh, ref texture, .. } = *body.borrow_mut();
 
-            let tex = &*body.texture;
-            let prog = match *tex {
+            let texture = &**texture;
+
+            let prog = match *texture {
                 texture::Texture::Twod(_) => &program,
                 texture::Texture::Array(_) => &program_array,
             };
 
-            body.mesh
+            mesh
                 .draw(&mut target,
                       &uniform! {
                       perspective: *projection.as_ref(),
                       modelview: *modelview.as_ref(),
-                      tex: tex,
-                      player_pos: player_pos,
+                      tex: texture,
+                      player_pos: *player_pos.as_ref(),
                   },
                       prog,
                       true,
