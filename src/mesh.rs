@@ -66,48 +66,49 @@ impl Mesh {
                              Pnt3::new(l, d, bk),
                              Pnt3::new(l, u, fr),
                              Pnt3::new(l, u, fr),
-                             Pnt3::new(l, d, fr),
                              Pnt3::new(l, d, bk),
+                             Pnt3::new(l, d, fr),
 
                              // +X
                              Pnt3::new(r, u, fr),
                              Pnt3::new(r, d, fr),
                              Pnt3::new(r, u, bk),
                              Pnt3::new(r, u, bk),
-                             Pnt3::new(r, d, bk),
                              Pnt3::new(r, d, fr),
+                             Pnt3::new(r, d, bk),
 
                              // -Z
                              Pnt3::new(l, u, fr),
                              Pnt3::new(l, d, fr),
                              Pnt3::new(r, u, fr),
                              Pnt3::new(r, u, fr),
-                             Pnt3::new(r, d, fr),
                              Pnt3::new(l, d, fr),
+                             Pnt3::new(r, d, fr),
 
                              // +Z
                              Pnt3::new(r, u, bk),
                              Pnt3::new(r, d, bk),
                              Pnt3::new(l, u, bk),
                              Pnt3::new(l, u, bk),
-                             Pnt3::new(l, d, bk),
                              Pnt3::new(r, d, bk),
+                             Pnt3::new(l, d, bk),
 
                              // -Y
                              Pnt3::new(l, d, fr),
                              Pnt3::new(l, d, bk),
                              Pnt3::new(r, d, fr),
                              Pnt3::new(r, d, fr),
-                             Pnt3::new(r, d, bk),
                              Pnt3::new(l, d, bk),
+                             Pnt3::new(r, d, bk),
 
                              // +Y
                              Pnt3::new(l, u, bk),
                              Pnt3::new(l, u, fr),
                              Pnt3::new(r, u, bk),
                              Pnt3::new(r, u, bk),
+                             Pnt3::new(l, u, fr),
                              Pnt3::new(r, u, fr),
-                             Pnt3::new(l, u, fr)];
+                         ];
 
         let normals = vec![Vec3::new(r, 0.0, 0.0),
                            Vec3::new(r, 0.0, 0.0),
@@ -171,8 +172,8 @@ impl Mesh {
             uvs.push(*base + uv_1);
             uvs.push(*base + uv_2);
             uvs.push(*base + uv_2);
-            uvs.push(*base + uv_3);
             uvs.push(*base + uv_1);
+            uvs.push(*base + uv_3);
         }
 
         Ok(Mesh::new(f, positions, normals, uvs)?)
@@ -198,6 +199,8 @@ impl Mesh {
         if alpha_dual_render {
             params.blend = glium::Blend::alpha_blending();
             params.backface_culling = BackfaceCullingMode::CullCounterClockwise;
+        } else {
+            params.backface_culling = BackfaceCullingMode::CullClockwise;
         }
 
         surface.draw(&self.buffer,
