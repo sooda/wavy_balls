@@ -150,16 +150,19 @@ impl Mesh {
                            Vec3::new(0.0, d, 0.0),
                            Vec3::new(0.0, d, 0.0),
                            Vec3::new(0.0, d, 0.0),
-                           Vec3::new(0.0, d, 0.0)];
+                           Vec3::new(0.0, d, 0.0),
+                       ];
 
         let r = 1.0 / 3.0;
         let c = 1.0 / 4.0;
-        let uv_l = Pnt2::new(1.0 * c, 1.0 * r);
-        let uv_r = Pnt2::new(3.0 * c, 1.0 * r);
-        let uv_fr = Pnt2::new(2.0 * c, 1.0 * r);
-        let uv_bk = Pnt2::new(0.0 * c, 1.0 * r);
-        let uv_u = Pnt2::new(1.0 * c, 2.0 * r);
-        let uv_d = Pnt2::new(1.0 * c, 0.0 * r);
+        // origins of left bottom corner
+        // arranged such that the triangle order above works
+        let uv_l = Pnt2::new(0.0 * c, 1.0 * r); // left
+        let uv_r = Pnt2::new(2.0 * c, 1.0 * r); // right
+        let uv_f = Pnt2::new(1.0 * c, 1.0 * r); // front
+        let uv_b = Pnt2::new(3.0 * c, 1.0 * r); // back
+        let uv_d = Pnt2::new(1.0 * c, 0.0 * r); // down
+        let uv_u = Pnt2::new(1.0 * c, 2.0 * r); // up
 
         let uv_0 = Vec2::new(0.0, r);
         let uv_1 = Vec2::new(0.0, 0.0);
@@ -167,7 +170,7 @@ impl Mesh {
         let uv_3 = Vec2::new(c, 0.0);
 
         let mut uvs = vec![];
-        for base in &[uv_l, uv_r, uv_fr, uv_bk, uv_d, uv_u] {
+        for base in &[uv_l, uv_r, uv_f, uv_b, uv_d, uv_u] {
             uvs.push(*base + uv_0);
             uvs.push(*base + uv_1);
             uvs.push(*base + uv_2);
