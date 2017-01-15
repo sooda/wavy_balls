@@ -24,12 +24,12 @@ impl SoundClip {
     }
 }
 
-trait StereoFilter: Send {
+pub trait StereoFilter: Send {
     // takes interleaved left, right samples
     fn filter(&mut self, &mut [i16]);
 }
 
-struct AudioTape<'a, F: StereoFilter> {
+pub struct AudioTape<'a, F: StereoFilter> {
     clip: &'a SoundClip,
     filter: F,
 }
