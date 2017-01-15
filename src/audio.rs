@@ -52,6 +52,12 @@ pub struct AudioMixer<'a> {
     music: Music,
 }
 
+pub trait Sound<F: StereoFilter> {
+    type PlayArgs;
+
+    fn play(&self, args: Self::PlayArgs) -> AudioTape<F>;
+}
+
 impl<'a> AudioMixer<'a> {
     pub fn new(music_filename: &str) -> Result<Self> {
         let sdl_mixer = init(INIT_OGG).map_err(sdl_err)
@@ -74,7 +80,9 @@ impl<'a> AudioMixer<'a> {
         })
     }
 
-    pub fn play<F: StereoFilter>(&self, tape: AudioTape<'a, F>) -> Result<()> {
+    pub fn play<F: StereoFilter, S: Sound<F>>(&self, sound: &S, args: S::PlayArgs) -> Result<()> {
+        let tape = sound.play(args);
+
         let chan = Channel::all().play(&tape.clip.chunk, 0)
             .map_err(sdl_err)
             .chain_err(|| "failed to play sound")?;
@@ -118,10 +126,15 @@ impl JumpSound {
     pub fn new() -> Result<Self> {
         Ok(JumpSound { clip: SoundClip::new("146718__fins__button.wav")? })
     }
-    pub fn play(&self, vol: f32) -> AudioTape<VolumeEffect> {
+}
+
+impl Sound<VolumeEffect> for JumpSound {
+    type PlayArgs = (f32,);
+
+    fn play(&self, args: (f32,)) -> AudioTape<VolumeEffect> {
         AudioTape {
             clip: &self.clip,
-            filter: VolumeEffect { vol: vol },
+            filter: VolumeEffect { vol: args.0 },
         }
     }
 }
@@ -134,7 +147,12 @@ impl HitSound {
     pub fn new() -> Result<Self> {
         Ok(HitSound { clip: SoundClip::new("114181__edgardedition__thud11.wav")? })
     }
-    pub fn play(&self) -> AudioTape<NoEffect> {
+}
+
+impl Sound<NoEffect> for HitSound {
+    type PlayArgs = ();
+
+    fn play(&self, args: ()) -> AudioTape<NoEffect> {
         AudioTape {
             clip: &self.clip,
             filter: NoEffect {},

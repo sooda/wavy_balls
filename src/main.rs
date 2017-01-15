@@ -231,7 +231,7 @@ fn run() -> Result<()> {
             let oi2: isize = o2.borrow_mut().index();
             let plri: isize = player.borrow_mut().index();
             if oi1 == plri || oi2 == plri {
-                mixer.play(hit_sound.play());
+                mixer.play(&*hit_sound, ());
             }
         };
 
@@ -302,7 +302,7 @@ fn run() -> Result<()> {
                         Some(Keycode::Space) if allow_jump => {
                             force_y = 2.0 * GRAVITY * force_mag;
                             times_jumped += 1;
-                            mixer.play(jump_sound.play(1.0 / (times_jumped as f32)))
+                            mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
                                 .chain_err(|| "failed to play jump sound")?;
                             allow_jump = false;
                         }
