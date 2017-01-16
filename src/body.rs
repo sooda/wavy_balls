@@ -1,14 +1,11 @@
-use math;
 use obj;
 use mesh;
 use texture;
 use na;
-use nc;
 use ode;
 use math::*;
 use errors::*;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::path::Path;
 
 pub enum BodyShape {

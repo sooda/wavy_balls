@@ -141,10 +141,12 @@ impl Sound<VolumeEffect> for JumpSound {
     }
 }
 
+#[allow(dead_code)]
 pub struct HitSound {
     clip: SoundClip,
 }
 
+#[allow(dead_code)]
 impl HitSound {
     pub fn new() -> Result<Self> {
         Ok(HitSound { clip: SoundClip::new("114181__edgardedition__thud11.wav")? })

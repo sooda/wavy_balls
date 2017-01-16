@@ -1,6 +1,4 @@
 use body::{Body, BodyShape, BodyConfig};
-use nc;
-use np;
 use ode;
 use std;
 use math::*;
@@ -8,9 +6,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use mesh;
 use texture;
-
-use nc::world::CollisionObject3;
-use np::object::{WorldObject, RigidBodyHandle};
 
 struct NearCallbackContext {
     world: ode::dWorldID,
@@ -20,8 +15,6 @@ struct NearCallbackContext {
 unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
                                    o1: ode::dGeomID,
                                    o2: ode::dGeomID) {
-    let i = 0;
-
     let b1 = ode::dGeomGetBody(o1);
     let b2 = ode::dGeomGetBody(o2);
 
@@ -87,10 +80,10 @@ impl World {
         }
     }
 
-    pub fn add_contact_handler<F>(&mut self, handler: F)
-        where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
-    {
-    }
+    // pub fn add_contact_handler<F>(&mut self, handler: F)
+    // where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
+    // {
+    // }
 
     pub fn add_body(&mut self,
                     mesh: Rc<mesh::Mesh>,

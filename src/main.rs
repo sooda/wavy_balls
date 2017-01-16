@@ -51,15 +51,13 @@ use std::io::Read;
 use std::rc::Rc;
 use std::path::Path;
 
-use na::{ToHomogeneous, Rotation3, Norm};
+use na::{ToHomogeneous, Rotation3};
 use glium::Surface;
 use inotify::INotify;
 use inotify::ffi::*;
 
 use math::*;
-use audio::{AudioMixer, JumpSound, HitSound};
-
-use np::object::{STATIC_GROUP_ID, SENSOR_GROUP_ID};
+use audio::{AudioMixer, JumpSound};
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -248,7 +246,7 @@ fn run() -> Result<()> {
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
     let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png"]).chain_err(|| "failed to load landscape texture")?);
 
-    let mut player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
+    let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
         eh_texture.clone(),
                    body::BodyShape::Sphere{radius: 1.0},
                    body::BodyConfig{
@@ -298,7 +296,7 @@ fn run() -> Result<()> {
     let mixer = Rc::new(AudioMixer::new("foldplop_-_memory_song_part_2.ogg")
         .chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
-    let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
+    // let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
 
     {
         /*
@@ -354,7 +352,7 @@ fn run() -> Result<()> {
         let curr_t = last_t as f32 / 1000.0;
 
         let mut force_x = 0.0;
-        let mut force_y = 0.0;
+        //let mut force_y = 0.0;
         let mut force_z = 0.0;
 
         let force_mag = 10.0;
@@ -366,7 +364,7 @@ fn run() -> Result<()> {
         }
 
         if input.jump && allow_jump {
-            force_y = 2.0 * GRAVITY * force_mag;
+            //force_y = 2.0 * GRAVITY * force_mag;
             times_jumped += 1;
             mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
                 .chain_err(|| "failed to play jump sound")?;
@@ -415,7 +413,7 @@ fn run() -> Result<()> {
         let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
                          Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
         let camera_pos = player.borrow_mut().get_position() + Vec3::new(0.0, 3.0, 5.0) * camera_rot;
-        let mut znear = 0.01f32;
+        let znear = 0.01f32;
         /*{
             let cam = camera_pos.to_point();
             let ball = player.borrow_mut().position().translation.to_point();
