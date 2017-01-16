@@ -447,14 +447,14 @@ fn run() -> Result<()> {
                 ode::dGeomDestroy(ray);
             }
 
-            let mut dep = contacts[0].depth as f32;
+            let eps = 0.001;
+
+            let mut dep = maxdep + eps;
             for c in contacts {
                 if (c.depth as f32) < dep {
                     dep = c.depth as f32;
                 }
             }
-
-            let eps = 0.001;
             // closer than depth to the player ball surface? cut everything to be able to see when
             // camera goes inside walls or other objects
             if dep < maxdep - eps {
