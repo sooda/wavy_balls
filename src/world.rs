@@ -39,12 +39,19 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
     for i in 0..numc {
 
         let contact = &mut contact[i as usize];
-        // friction
 
-        contact.surface.mu = 3.0;
-        contact.surface.bounce = 0.1;
+        // friction
+        contact.surface.mu = 50.0;
+
+        // rolling friction
+        contact.surface.rho = 0.1;
+
+        // rolling friction (spin direction, beyblade prevention)
+        contact.surface.rhoN = 8000.0;
+
+        // contact.surface.bounce = 0.0;
+        // contact.surface.mode |= ode::dContactBounce as i32;
         contact.surface.mode |= ode::dContactRolling as i32;
-        contact.surface.mode |= ode::dContactBounce as i32;
 
         let id = ode::dJointCreateContact(ctx.world, ctx.contact_group, contact);
         ode::dJointAttach(id, b1, b2);
