@@ -1,16 +1,17 @@
 block ch=# height=20.0
-block ch=. height=0.1
+block ch=. height=0.1 tex=1
 block ch=l height=0.1 heightb=2.5 shape=l
 block ch=r height=0.1 heightb=2.5 shape=r
 block ch=u height=0.1 heightb=2.5 shape=u
 block ch=d height=0.1 heightb=2.5 shape=d
 block ch=1 height=0.1 heightb=2.5 shape=lu
+block ch=; height=2.5
 tiles
 ########################
 #......................#
 #..........1uu.........#
-#..........l..r........#
-#..........l..r........#
+#..........l;;r........#
+#..........l;;r........#
 #...........dd.........#
 #......................#
 #......................#

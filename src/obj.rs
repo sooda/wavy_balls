@@ -42,7 +42,7 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
                                      toks[3].parse().unwrap())
                 .normalize());
         } else if toks[0] == "vt" {
-            let w = toks[2].parse().unwrap_or(0.0);
+            let w = toks.get(3).and_then(|t| t.parse().ok()).unwrap_or(0.0);
             obj_texcs.push(Pnt3::new(toks[1].parse().unwrap(), toks[2].parse().unwrap(), w))
         } else if toks[0] == "f" {
             let (a, b, c) = (parse_f(toks[1])?, parse_f(toks[2])?, parse_f(toks[3])?);

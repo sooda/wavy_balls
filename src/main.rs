@@ -107,7 +107,7 @@ static FRAGMENT_SHADER_ARRAY: &'static str = r#"
     uniform vec3 player_pos;
 
     void main() {
-        vec4 color = texture(tex, f_tex_coord.xyz);
+        vec4 color = texture(tex, f_tex_coord);
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color.rgb = color.rgb * 0.4;
         gl_FragColor = color;
@@ -244,7 +244,7 @@ fn run() -> Result<()> {
     let mut world = world::World::new();
 
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
-    let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png"]).chain_err(|| "failed to load landscape texture")?);
+    let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png", "ruohe.png"]).chain_err(|| "failed to load landscape texture")?);
 
     let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
         eh_texture.clone(),

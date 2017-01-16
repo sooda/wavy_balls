@@ -1,6 +1,5 @@
 extern crate nalgebra as na;
 pub type Vec3 = na::Vector3<f32>;
-pub type Pnt2 = na::Point2<f32>;
 pub type Pnt3 = na::Point3<f32>;
 
 use std::fs::File;
@@ -19,6 +18,7 @@ pub enum Shape {
 #[derive(Debug, Copy, Clone)]
 pub struct Tile {
     shape: Shape,
+    texture: u32,
 }
 
 pub struct Worldgen {
@@ -30,7 +30,7 @@ impl Worldgen {
     pub fn new(dims: (u32, u32)) -> Worldgen {
         Worldgen {
             dims: dims,
-            tiles: vec![Tile { shape: Shape::Flat(0.0) }; (dims.0 * dims.1) as usize],
+            tiles: vec![Tile { shape: Shape::Flat(0.0), texture: 0 }; (dims.0 * dims.1) as usize],
         }
     }
 }
@@ -128,6 +128,7 @@ pub fn load_level_from_desc(desc: &str) -> Worldgen {
                             }
                             s => panic!("invalid tile shape {}", s),
                         },
+                        texture: args.get("tex").unwrap_or(&"0").parse().unwrap(),
                     };
                     blocks.insert(ch, tile);
                 }
@@ -173,7 +174,7 @@ pub fn load_level_from_desc(desc: &str) -> Worldgen {
     world
 }
 
-pub fn generate_3d_vertices(world: &Worldgen) -> (Vec<Pnt3>, Vec<Vec3>, Vec<Pnt2>) {
+pub fn generate_3d_vertices(world: &Worldgen) -> (Vec<Pnt3>, Vec<Vec3>, Vec<Pnt3>) {
     let mut pos = vec![];
     let mut nor = vec![];
     let mut tex = vec![];
@@ -194,105 +195,107 @@ pub fn generate_3d_vertices(world: &Worldgen) -> (Vec<Pnt3>, Vec<Vec3>, Vec<Pnt2
                 Shape::Flat(h) => (h, h, h, h),
             };
 
+            let t = tile.texture as f32;
+
             pos.push(Pnt3::new(vx, vy_0, vz));
             nor.push(Vec3::new(0.0, 1.0, 0.0));
-            tex.push(Pnt2::new(0.0, 0.0));
+            tex.push(Pnt3::new(0.0, 0.0, t));
             pos.push(Pnt3::new(vx, vy_1, vz + sc));
             nor.push(Vec3::new(0.0, 1.0, 0.0));
-            tex.push(Pnt2::new(0.0, 1.0));
+            tex.push(Pnt3::new(0.0, 1.0, t));
             pos.push(Pnt3::new(vx + sc, vy_3, vz + sc));
             nor.push(Vec3::new(0.0, 1.0, 0.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
 
             pos.push(Pnt3::new(vx + sc, vy_3, vz + sc));
             nor.push(Vec3::new(0.0, 1.0, 0.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
             pos.push(Pnt3::new(vx + sc, vy_2, vz));
             nor.push(Vec3::new(0.0, 1.0, 0.0));
-            tex.push(Pnt2::new(0.5, 0.0));
+            tex.push(Pnt3::new(0.5, 0.0, t));
             pos.push(Pnt3::new(vx, vy_0, vz));
             nor.push(Vec3::new(0.0, 1.0, 0.0));
-            tex.push(Pnt2::new(0.0, 0.0));
+            tex.push(Pnt3::new(0.0, 0.0, t));
 
             pos.push(Pnt3::new(vx, vy_1, vz + sc));
             nor.push(Vec3::new(-1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(1.0, 1.0));
+            tex.push(Pnt3::new(1.0, 1.0, t));
             pos.push(Pnt3::new(vx, 0.0, vz + sc));
             nor.push(Vec3::new(-1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(1.0, 0.0));
+            tex.push(Pnt3::new(1.0, 0.0, t));
             pos.push(Pnt3::new(vx, 0.0, vz));
             nor.push(Vec3::new(-1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(0.5, 0.0));
+            tex.push(Pnt3::new(0.5, 0.0, t));
 
             pos.push(Pnt3::new(vx, 0.0, vz));
             nor.push(Vec3::new(-1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(0.5, 0.0));
+            tex.push(Pnt3::new(0.5, 0.0, t));
             pos.push(Pnt3::new(vx, vy_0, vz));
             nor.push(Vec3::new(-1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
             pos.push(Pnt3::new(vx, vy_1, vz + sc));
             nor.push(Vec3::new(-1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(1.0, 1.0));
+            tex.push(Pnt3::new(1.0, 1.0, t));
 
             pos.push(Pnt3::new(vx + sc, vy_3, vz + sc));
             nor.push(Vec3::new(1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
             pos.push(Pnt3::new(vx + sc, 0.0, vz + sc));
             nor.push(Vec3::new(1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(0.5, 0.0));
+            tex.push(Pnt3::new(0.5, 0.0, t));
             pos.push(Pnt3::new(vx + sc, 0.0, vz));
             nor.push(Vec3::new(1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(1.0, 0.0));
+            tex.push(Pnt3::new(1.0, 0.0, t));
 
             pos.push(Pnt3::new(vx + sc, 0.0, vz));
             nor.push(Vec3::new(1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(1.0, 0.0));
+            tex.push(Pnt3::new(1.0, 0.0, t));
             pos.push(Pnt3::new(vx + sc, vy_2, vz));
             nor.push(Vec3::new(1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(1.0, 1.0));
+            tex.push(Pnt3::new(1.0, 1.0, t));
             pos.push(Pnt3::new(vx + sc, vy_3, vz + sc));
             nor.push(Vec3::new(1.0, 0.0, 0.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
 
             pos.push(Pnt3::new(vx + sc, vy_2, vz));
             nor.push(Vec3::new(0.0, 0.0, -1.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
             pos.push(Pnt3::new(vx + sc, 0.0, vz));
             nor.push(Vec3::new(0.0, 0.0, -1.0));
-            tex.push(Pnt2::new(0.5, 0.0));
+            tex.push(Pnt3::new(0.5, 0.0, t));
             pos.push(Pnt3::new(vx, 0.0, vz));
             nor.push(Vec3::new(0.0, 0.0, -1.0));
-            tex.push(Pnt2::new(1.0, 0.0));
+            tex.push(Pnt3::new(1.0, 0.0, t));
 
             pos.push(Pnt3::new(vx, 0.0, vz));
             nor.push(Vec3::new(0.0, 0.0, -1.0));
-            tex.push(Pnt2::new(1.0, 0.0));
+            tex.push(Pnt3::new(1.0, 0.0, t));
             pos.push(Pnt3::new(vx, vy_0, vz));
             nor.push(Vec3::new(0.0, 0.0, -1.0));
-            tex.push(Pnt2::new(1.0, 1.0));
+            tex.push(Pnt3::new(1.0, 1.0, t));
             pos.push(Pnt3::new(vx + sc, vy_2, vz));
             nor.push(Vec3::new(0.0, 0.0, -1.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
 
             pos.push(Pnt3::new(vx + sc, vy_3, vz + sc));
             nor.push(Vec3::new(0.0, 0.0, 1.0));
-            tex.push(Pnt2::new(1.0, 1.0));
+            tex.push(Pnt3::new(1.0, 1.0, t));
             pos.push(Pnt3::new(vx + sc, 0.0, vz + sc));
             nor.push(Vec3::new(0.0, 0.0, 1.0));
-            tex.push(Pnt2::new(1.0, 0.0));
+            tex.push(Pnt3::new(1.0, 0.0, t));
             pos.push(Pnt3::new(vx, 0.0, vz + sc));
             nor.push(Vec3::new(0.0, 0.0, 1.0));
-            tex.push(Pnt2::new(0.5, 0.0));
+            tex.push(Pnt3::new(0.5, 0.0, t));
 
             pos.push(Pnt3::new(vx, 0.0, vz + sc));
             nor.push(Vec3::new(0.0, 0.0, 1.0));
-            tex.push(Pnt2::new(0.5, 0.0));
+            tex.push(Pnt3::new(0.5, 0.0, t));
             pos.push(Pnt3::new(vx, vy_1, vz + sc));
             nor.push(Vec3::new(0.0, 0.0, 1.0));
-            tex.push(Pnt2::new(0.5, 1.0));
+            tex.push(Pnt3::new(0.5, 1.0, t));
             pos.push(Pnt3::new(vx + sc, vy_3, vz + sc));
             nor.push(Vec3::new(0.0, 0.0, 1.0));
-            tex.push(Pnt2::new(1.0, 1.0));
+            tex.push(Pnt3::new(1.0, 1.0, t));
         }
     }
 
@@ -304,7 +307,7 @@ fn main() {
     File::open(std::env::args_os().nth(1).unwrap()).unwrap().read_to_string(&mut level).unwrap();
 
     let world = load_level_from_desc(&level);
-    let (pos,nor,tex) = generate_3d_vertices(&world);
+    let (pos, nor, tex) = generate_3d_vertices(&world);
 
     println!("# Generated by worldgen");
     println!("#");
@@ -322,10 +325,12 @@ fn main() {
         println!("vn {} {} {}", n.x, n.y, n.z);
     }
     for t in tex {
-        println!("vt {} {}", t.x, t.y);
+        println!("vt {} {} {}", t.x, t.y, t.z);
     }
     for i in 0..tris {
         println!("f {a}/{a}/{a} {b}/{b}/{b} {c}/{c}/{c}",
-                 a = (i*3+0)+1, b = (i*3+1)+1, c = (i*3+2)+1);
+                 a = (i * 3 + 0) + 1,
+                 b = (i * 3 + 1) + 1,
+                 c = (i * 3 + 2) + 1);
     }
 }
