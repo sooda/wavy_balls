@@ -304,8 +304,6 @@ fn run() -> Result<()> {
         let hit_sound = hit_sound.clone();
         let handler = move |o1: &mut Body, o2: &mut Body, contact: &mut ode::dContact| {
             if o1.id == plr_id || o2.id == plr_id {
-                // bleh, can't ".chain_err(foo)?" this
-
                 let vel1 = o1.get_linear_velocity();
                 let vel2 = o2.get_linear_velocity();
                 let delta_vel = vel1 - vel2;
@@ -314,6 +312,7 @@ fn run() -> Result<()> {
                                        contact.geom.normal[2] as f32);
                 let coincide_vel = na::dot(&normal, &delta_vel).abs();
                 if coincide_vel > 4.0 {
+                    // bleh, can't ".chain_err(foo)?" this result in a handler
                     mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
                 }
             }

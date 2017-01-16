@@ -22,13 +22,13 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
     // bi1 and bi2 are the ids of some bodies in the bodies vec
     // find indices of those bodies first and then obtain two mutable references to them
     for (i, obj) in world.bodies.iter().enumerate() {
-        if obj.borrow_mut().id == bi1 {
+        if obj.borrow().id == bi1 {
             bi1 = i as u64;
             break;
         }
     }
     for (i, obj) in world.bodies.iter().enumerate() {
-        if obj.borrow_mut().id == bi2 {
+        if obj.borrow().id == bi2 {
             bi2 = i as u64;
             break;
         }
