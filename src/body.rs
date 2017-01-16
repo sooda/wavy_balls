@@ -66,6 +66,7 @@ pub struct Body {
     pub shape: BodyShape, // NOTE: holds memory of TriMesh!
     pub ode_body: ode::dBodyID,
     pub ode_geom: ode::dGeomID,
+    pub id: u64,
 }
 
 impl Body {
@@ -80,6 +81,14 @@ impl Body {
     pub fn set_position(&mut self, pos: Vec3) {
         unsafe {
             ode::dBodySetPosition(self.ode_body, pos.x as f64, pos.y as f64, pos.z as f64);
+        }
+    }
+    pub fn get_linear_velocity(&mut self) -> Vec3 {
+        unsafe {
+            let v = ode::dBodyGetLinearVel(self.ode_body);
+            Vec3::new(*v.offset(0) as f32,
+                      *v.offset(1) as f32,
+                      *v.offset(2) as f32)
         }
     }
     pub fn set_linear_velocity(&mut self, vel: Vec3) {

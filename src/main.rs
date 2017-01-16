@@ -57,7 +57,8 @@ use inotify::INotify;
 use inotify::ffi::*;
 
 use math::*;
-use audio::{AudioMixer, JumpSound};
+use audio::{AudioMixer, JumpSound, HitSound};
+use body::Body;
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -296,24 +297,28 @@ fn run() -> Result<()> {
     let mixer = Rc::new(AudioMixer::new("foldplop_-_memory_song_part_2.ogg")
         .chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
-    // let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
-
+    let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
     {
-        /*
-        let player = player.clone();
+        let plr_id = player.borrow_mut().id;
         let mixer = mixer.clone();
         let hit_sound = hit_sound.clone();
-        let handler = move |o1: &np::object::RigidBodyHandle<f32>,
-                                o2: &np::object::RigidBodyHandle<f32>| {
-            let oi1: isize = o1.index();
-            let oi2: isize = o2.index();
-            let plri: isize = player.index();
-            if oi1 == plri || oi2 == plri {
+        let handler = move |o1: &mut Body, o2: &mut Body, contact: &mut ode::dContact| {
+            if o1.id == plr_id || o2.id == plr_id {
                 // bleh, can't ".chain_err(foo)?" this
-                mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
+
+                let vel1 = o1.get_linear_velocity();
+                let vel2 = o2.get_linear_velocity();
+                let delta_vel = vel1 - vel2;
+                let normal = Vec3::new(contact.geom.normal[0] as f32,
+                                       contact.geom.normal[1] as f32,
+                                       contact.geom.normal[2] as f32);
+                let coincide_vel = na::dot(&normal, &delta_vel).abs();
+                if coincide_vel > 4.0 {
+                    mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
+                }
             }
         };
-        world.add_contact_handler(handler);*/
+        world.add_contact_handler(Box::new(handler));
     }
 
     let mut allow_jump = true;

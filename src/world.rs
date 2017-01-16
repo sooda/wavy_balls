@@ -7,24 +7,47 @@ use std::cell::RefCell;
 use mesh;
 use texture;
 
-struct NearCallbackContext {
-    world: ode::dWorldID,
-    contact_group: ode::dJointGroupID,
-}
-
 unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
-                                   o1: ode::dGeomID,
-                                   o2: ode::dGeomID) {
-    let b1 = ode::dGeomGetBody(o1);
-    let b2 = ode::dGeomGetBody(o2);
+                                   ode_g1: ode::dGeomID,
+                                   ode_g2: ode::dGeomID) {
+    let ode_b1 = ode::dGeomGetBody(ode_g1);
+    let ode_b2 = ode::dGeomGetBody(ode_g2);
 
-    let ctx: &NearCallbackContext = &*(user_data as *const NearCallbackContext);
+    let mut world: &mut World = &mut *(user_data as *mut World);
+
+    // find references to Body instances
+    let mut bi1 = ode::dBodyGetData(ode_b1) as u64;
+    let mut bi2 = ode::dBodyGetData(ode_b2) as u64;
+
+    // bi1 and bi2 are the ids of some bodies in the bodies vec
+    // find indices of those bodies first and then obtain two mutable references to them
+    for (i, obj) in world.bodies.iter().enumerate() {
+        if obj.borrow_mut().id == bi1 {
+            bi1 = i as u64;
+            break;
+        }
+    }
+    for (i, obj) in world.bodies.iter().enumerate() {
+        if obj.borrow_mut().id == bi2 {
+            bi2 = i as u64;
+            break;
+        }
+    }
+    assert!(bi1 != bi2);
+
+    let (mut b1, mut b2) = if bi1 < bi2 {
+        let (begin, end) = world.bodies.split_at_mut(bi2 as usize);
+        (begin[bi1 as usize].borrow_mut(), end[0].borrow_mut())
+    } else {
+        let (begin, end) = world.bodies.split_at_mut(bi1 as usize);
+        (end[0].borrow_mut(), begin[bi2 as usize].borrow_mut())
+    };
 
     const MAX_CONTACTS: usize = 1024;
     let mut contact: [ode::dContact; MAX_CONTACTS] = std::mem::zeroed();
 
-    let numc = ode::dCollide(o1,
-                             o2,
+    let numc = ode::dCollide(ode_g1,
+                             ode_g2,
                              MAX_CONTACTS as i32,
                              &mut contact[0].geom,
                              std::mem::size_of::<ode::dContact>() as i32);
@@ -32,7 +55,6 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
     for i in 0..numc {
 
         let contact = &mut contact[i as usize];
-
         // friction
         contact.surface.mu = 50.0;
 
@@ -46,12 +68,16 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
         // contact.surface.mode |= ode::dContactBounce as i32;
         contact.surface.mode |= ode::dContactRolling as i32;
 
-        let id = ode::dJointCreateContact(ctx.world, ctx.contact_group, contact);
-        ode::dJointAttach(id, b1, b2);
+        for mut handler in world.contact_handlers.iter_mut() {
+            handler(&mut *b1, &mut *b2, contact);
+        }
+        let id = ode::dJointCreateContact(world.ode_world, world.ode_contact_group, contact);
+        ode::dJointAttach(id, ode_b1, ode_b2);
     }
 }
 
 
+type ContactHandlerT = Box<FnMut(&mut Body, &mut Body, &mut ode::dContact) + 'static>;
 
 pub struct World {
     ode_world: ode::dWorldID,
@@ -59,6 +85,8 @@ pub struct World {
     ode_contact_group: ode::dJointGroupID,
     bodies: Vec<Rc<RefCell<Body>>>,
     leftover_dt: f32,
+    contact_handlers: Vec<ContactHandlerT>,
+    body_id_counter: u64,
 }
 impl World {
     pub fn new() -> World {
@@ -77,6 +105,8 @@ impl World {
             ode_contact_group: unsafe { ode::dJointGroupCreate(0) },
             leftover_dt: 0.0,
             bodies: Vec::new(),
+            contact_handlers: Vec::new(),
+            body_id_counter: 0,
         }
     }
 
@@ -84,10 +114,9 @@ impl World {
         self.ode_space
     }
 
-    // pub fn add_contact_handler<F>(&mut self, handler: F)
-    // where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
-    // {
-    // }
+    pub fn add_contact_handler(&mut self, handler: ContactHandlerT) {
+        self.contact_handlers.push(handler);
+    }
 
     pub fn add_body(&mut self,
                     mesh: Rc<mesh::Mesh>,
@@ -122,6 +151,7 @@ impl World {
 
         println!("Create body {:?}", config);
         unsafe {
+            ode::dBodySetData(ode_body, self.body_id_counter as *mut std::os::raw::c_void);
             ode::dBodySetPosition(ode_body, 0.0, 0.0, 0.0);
             if config.fixed {
                 ode::dBodySetKinematic(ode_body);
@@ -141,8 +171,10 @@ impl World {
             config: config,
             ode_body: ode_body,
             ode_geom: ode_geom,
+            id: self.body_id_counter,
         }));
         self.bodies.push(body.clone());
+        self.body_id_counter += 1;
         body
     }
 
@@ -154,16 +186,11 @@ impl World {
             self.leftover_dt -= PHYS_DT;
 
             unsafe {
-                let mut ctx = NearCallbackContext {
-                    world: self.ode_world,
-                    contact_group: self.ode_contact_group,
-                };
                 ode::dSpaceCollide(self.ode_space,
-                                   &mut ctx as *mut _ as *mut std::os::raw::c_void,
+                                   self as *mut _ as *mut std::os::raw::c_void,
                                    Some(near_callback));
 
                 ode::dWorldStep(self.ode_world, PHYS_DT as f64);
-
                 ode::dJointGroupEmpty(self.ode_contact_group);
             }
         }
