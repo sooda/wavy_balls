@@ -95,6 +95,14 @@ impl Body {
                                 torque.z as f64)
         }
     }
+    pub fn add_force(&mut self, force: Vec3) {
+        unsafe {
+            ode::dBodyAddForce(self.ode_body,
+                                force.x as f64,
+                                force.y as f64,
+                                force.z as f64)
+        }
+    }
     // 0  1  2  3
     // 4  5  6  7
     // 8  9  10 11

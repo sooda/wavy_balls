@@ -352,7 +352,7 @@ fn run() -> Result<()> {
         let curr_t = last_t as f32 / 1000.0;
 
         let mut force_x = 0.0;
-        // let mut force_y = 0.0;
+        let mut force_y = 0.0;
         let mut force_z = 0.0;
 
         let force_mag = 10.0;
@@ -364,7 +364,7 @@ fn run() -> Result<()> {
         }
 
         if input.jump && allow_jump {
-            // force_y = 2.0 * GRAVITY * force_mag;
+            force_y = 3.14 * GRAVITY * force_mag;
             times_jumped += 1;
             mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
                 .chain_err(|| "failed to play jump sound")?;
@@ -464,8 +464,7 @@ fn run() -> Result<()> {
         force_z += force_mag * input.player.y;
 
         // impulse based:
-        // player
-        //    .apply_central_impulse(Vec3::new(0.0, force_y, 0.0) * camera_rot);
+         player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
 
         // angular momentum based control:
         player.borrow_mut().add_torque(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
