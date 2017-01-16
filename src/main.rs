@@ -30,7 +30,6 @@ mod obj;
 mod texture;
 mod particle;
 mod input;
-mod worldgen;
 
 mod ode;
 
@@ -246,35 +245,13 @@ fn run() -> Result<()> {
     player.borrow_mut().set_deactivation_threshold(None); // prevent deactivation
     world.phys_world().add_ccd_to(&player, 0.000001, false);
 
-    let worldgen = worldgen::load_level_from_desc(r#"
-block ch=# height=20.0
-block ch=. height=0.1
-block ch=l height=0.1 heightb=2.5 shape=l
-block ch=r height=0.1 heightb=2.5 shape=r
-block ch=u height=0.1 heightb=2.5 shape=u
-block ch=d height=0.1 heightb=2.5 shape=d
-block ch=1 height=0.1 heightb=2.5 shape=lu
-tiles
-########################
-#......................#
-#..........1uu.........#
-#..........l..r........#
-#..........l..r........#
-#...........dd.........#
-#......................#
-#......................#
-#......................#
-#......................#
-#......................#
-#......................#
-########################
-"#);
-    let (wpos,wnor,wtex) = worldgen::generate_3d_vertices(&worldgen);
+    let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
+        .chain_err(|| "failed to load level mesh for draw")?;
+    let world_shape = body::BodyShape::from_obj("mappi.obj")
+        .chain_err(|| "failed to load level mesh for phys")?;
 
-    let landscape = world.add_body(
-        Rc::new(mesh::Mesh::new(&display, wpos.clone(),wnor,wtex).chain_err(|| "failed to load plane mesh")?),
-        landscape_texture,
-                                body::BodyShape::from_vertices(wpos), body::BodyConfig{fixed: true, ..Default::default()});
+    let landscape = world.add_body(Rc::new(world_mesh), landscape_texture, world_shape,
+                                   body::BodyConfig{ fixed: true, ..Default::default() });
     landscape.borrow_mut().set_translation(Vec3::new(0.0, 0.0, 0.0));
 
     world.set_smooth_collision(&landscape, &player);

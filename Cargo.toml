@@ -3,6 +3,14 @@ name = "fgj"
 version = "0.1.0"
 authors = ["Mikko Perttunen <cyndis@kapsi.fi>"]
 
+[[bin]]
+name = "fgj"
+path = "src/main.rs"
+
+[[bin]]
+name = "worldgen"
+path = "src/worldgen.rs"
+
 [dependencies]
 glium_sdl2 = "0.13"
 glium = "0.15"
