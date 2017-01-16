@@ -1,5 +1,4 @@
 use math::*;
-use na;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Shape {
@@ -19,7 +18,6 @@ pub struct Tile {
 pub struct Worldgen {
     dims: (u32, u32),
     tiles: Vec<Tile>,
-    spawn: Pnt3,
 }
 
 impl Worldgen {
@@ -27,7 +25,6 @@ impl Worldgen {
         Worldgen {
             dims: dims,
             tiles: vec![Tile { shape: Shape::Flat(0.0) }; (dims.0 * dims.1) as usize],
-            spawn: Pnt3::new(0.0, 0.0, 0.0),
         }
     }
 }
@@ -35,6 +32,7 @@ impl Worldgen {
 pub fn load_level_from_desc(desc: &str) -> Worldgen {
     use std::collections::HashMap;
 
+    #[allow(dead_code)]
     fn parse_bool(v: &str) -> bool {
         match v {
             "true" | "yes" | "t" | "y" => true,
@@ -169,8 +167,8 @@ pub fn generate_3d_vertices(world: &Worldgen) -> (Vec<Pnt3>, Vec<Vec3>, Vec<Pnt2
     for x in 0..world.dims.0 {
         for y in 0..world.dims.1 {
             let tile = &world.tiles[(y*world.dims.0+x) as usize];
-            let mut vx = x as f32 * sc;
-            let mut vz = y as f32 * sc;
+            let vx = x as f32 * sc;
+            let vz = y as f32 * sc;
             let (vy_0, vy_1, vy_2, vy_3) = match tile.shape {
                 Shape::Left(d,u)  => (d,d,u,u),
                 Shape::Right(d,u) => (u,u,d,d),

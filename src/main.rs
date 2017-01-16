@@ -185,6 +185,9 @@ fn run() -> Result<()> {
             .read_to_string(&mut buffer)
             .chain_err(|| "failed to read gamecontrollerdb.txt")?;
         for line in buffer.lines() {
+            if line.starts_with('#') || line.trim().is_empty() {
+                continue;
+            }
             sdl_gcon.add_mapping(line).chain_err(|| "cannot add mapping")?;
         }
 
@@ -523,6 +526,9 @@ fn main() {
         println!("Error: {}", e);
         for cause in e.iter().skip(1) {
             println!(".. because: {}", cause);
+        }
+        if let Some(backtrace) = e.backtrace() {
+            println!("Backtrace:\n{:?}", backtrace);
         }
     }
 }

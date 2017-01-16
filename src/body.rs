@@ -16,6 +16,7 @@ pub enum BodyShape {
 }
 
 impl BodyShape {
+    #[allow(dead_code)]
     pub fn from_obj<P: AsRef<Path> + ?Sized>(path: &P) -> Result<BodyShape> {
         let (positions, _normals, _texcoord) =
             obj::load_obj(path).chain_err(|| "unable to load .obj")?;
