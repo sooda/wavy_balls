@@ -80,6 +80,10 @@ impl World {
         }
     }
 
+    pub fn ode_space(&self) -> ode::dSpaceID {
+        self.ode_space
+    }
+
     // pub fn add_contact_handler<F>(&mut self, handler: F)
     // where F: FnMut(&RigidBodyHandle<f32>, &RigidBodyHandle<f32>) + 'static
     // {

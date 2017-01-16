@@ -107,8 +107,7 @@ impl Mesh {
                              Pnt3::new(r, u, bk),
                              Pnt3::new(r, u, bk),
                              Pnt3::new(l, u, fr),
-                             Pnt3::new(r, u, fr),
-                         ];
+                             Pnt3::new(r, u, fr)];
 
         let normals = vec![Vec3::new(r, 0.0, 0.0),
                            Vec3::new(r, 0.0, 0.0),
@@ -150,8 +149,7 @@ impl Mesh {
                            Vec3::new(0.0, d, 0.0),
                            Vec3::new(0.0, d, 0.0),
                            Vec3::new(0.0, d, 0.0),
-                           Vec3::new(0.0, d, 0.0),
-                       ];
+                           Vec3::new(0.0, d, 0.0)];
 
         let r = 1.0 / 3.0;
         let c = 1.0 / 4.0;

@@ -51,7 +51,7 @@ use std::io::Read;
 use std::rc::Rc;
 use std::path::Path;
 
-use na::{ToHomogeneous, Rotation3};
+use na::{ToHomogeneous, Rotation3, Norm};
 use glium::Surface;
 use inotify::INotify;
 use inotify::ffi::*;
@@ -352,7 +352,7 @@ fn run() -> Result<()> {
         let curr_t = last_t as f32 / 1000.0;
 
         let mut force_x = 0.0;
-        //let mut force_y = 0.0;
+        // let mut force_y = 0.0;
         let mut force_z = 0.0;
 
         let force_mag = 10.0;
@@ -364,7 +364,7 @@ fn run() -> Result<()> {
         }
 
         if input.jump && allow_jump {
-            //force_y = 2.0 * GRAVITY * force_mag;
+            // force_y = 2.0 * GRAVITY * force_mag;
             times_jumped += 1;
             mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
                 .chain_err(|| "failed to play jump sound")?;
@@ -413,31 +413,52 @@ fn run() -> Result<()> {
         let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
                          Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
         let camera_pos = player.borrow_mut().get_position() + Vec3::new(0.0, 3.0, 5.0) * camera_rot;
-        let znear = 0.01f32;
-        /*{
+
+        let zfar = 500.0f32;
+        let znear_default = 0.01f32;
+        let znear = {
             let cam = camera_pos.to_point();
-            let ball = player.borrow_mut().position().translation.to_point();
+            let ball = player.borrow_mut().get_position().to_point();
             let cam_to_ball = (ball - cam).normalize();
-            let ray = nc::query::Ray::new(cam, cam_to_ball);
-            let mut groups = nc::world::CollisionGroups::new();
-            // won't collide with statics with these set
-            groups.modify_membership(STATIC_GROUP_ID, false);
-            groups.modify_membership(SENSOR_GROUP_ID, false);
-            let groups = groups;
-            let collisions = world.phys_world().collision_world().interferences_with_ray(&ray, &groups);
-            let dep = (ball - cam).norm() - 1.0; // radius
-            let mut min = std::f32::MAX;
-            for collision in collisions {
-                let _obj = collision.0;
-                let intersection = collision.1;
-                min = min.min(intersection.toi);
+            let maxdep = (ball - cam).norm() - 1.0; // radius
+
+            // welp. doesn't return the closest first.
+            // TODO: put the ground in its own space maybe
+            let maxhits = 100usize;
+
+            let mut contacts = Vec::<ode::dContactGeom>::with_capacity(maxhits);
+            unsafe {
+                let ray = ode::dCreateRay(std::ptr::null_mut(), zfar as f64);
+                ode::dGeomRaySet(ray,
+                                 cam.x as f64,
+                                 cam.y as f64,
+                                 cam.z as f64,
+                                 cam_to_ball.x as f64,
+                                 cam_to_ball.y as f64,
+                                 cam_to_ball.z as f64);
+                let found = ode::dCollide(ray, world.ode_space() as ode::dGeomID, maxhits as i32,
+                                          contacts.as_mut_ptr(),
+                                          std::mem::size_of::<ode::dContactGeom>() as i32) as usize;
+                contacts.set_len(found);
+                ode::dGeomDestroy(ray);
             }
+
+            let mut dep = contacts[0].depth as f32;
+            for c in contacts {
+                if (c.depth as f32) < dep {
+                    dep = c.depth as f32;
+                }
+            }
+
             let eps = 0.001;
             // closer than depth to the player ball surface? cut everything to be able to see when
             // camera goes inside walls or other objects
-            if min < dep - eps { znear = min; }
-        }*/
-        let znear = znear;
+            if dep < maxdep - eps {
+                dep
+            } else {
+                znear_default
+            }
+        };
 
         force_x += force_mag * input.player.x;
         force_z += force_mag * input.player.y;
@@ -452,7 +473,7 @@ fn run() -> Result<()> {
         let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
                                                PI / 2.0,
                                                znear,
-                                               500.0f32)
+                                               zfar)
             .to_matrix();
 
         // iso is rotation followed by translation, can't use it directly just like that
