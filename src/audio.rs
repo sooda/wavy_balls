@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::path::Path;
+use std;
 
 use sdl2::mixer::{init, INIT_OGG, Sdl2MixerContext, open_audio, AUDIO_S16LSB, allocate_channels,
                   Chunk, Channel, EffectCallback, Music};
@@ -71,7 +72,9 @@ impl<'a> AudioMixer<'a> {
             Music::from_file(Path::new(music_filename)).map_err(sdl_err)
                 .chain_err(|| "failed to load background music")?;
 
-        music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
+        if std::env::var("NO_MUSIC").is_err() {
+            music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
+        }
 
         Ok(AudioMixer {
             phantom_clip: PhantomData,
