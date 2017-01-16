@@ -1,9 +1,9 @@
 use math;
 use obj;
 use mesh;
+use texture;
 use na;
 use nc;
-use glium;
 use math::*;
 use errors::*;
 use std::rc::Rc;
@@ -52,10 +52,9 @@ impl Default for BodyConfig {
     }
 }
 
-
 pub struct Body {
     pub mesh: Rc<mesh::Mesh>,
-    pub texture: Rc<glium::texture::Texture2d>,
+    pub texture: Rc<texture::Texture>,
     pub config: BodyConfig,
 }
 

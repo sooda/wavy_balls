@@ -14,7 +14,7 @@ use errors::*;
 struct Vertex {
     position: [f32; 3],
     normal: [f32; 3],
-    tex_coord: [f32; 2],
+    tex_coord: [f32; 3],
 }
 implement_vertex!(Vertex, position, normal, tex_coord);
 
@@ -26,7 +26,7 @@ impl Mesh {
     pub fn new<F: Facade>(f: &F,
                           positions: Vec<Pnt3>,
                           normals: Vec<Vec3>,
-                          texture_coordinates: Vec<Pnt2>)
+                          texture_coordinates: Vec<Pnt3>)
                           -> Result<Mesh> {
         let mut vs = Vec::with_capacity(positions.len());
         for ((p, n), t) in positions.into_iter()
@@ -157,17 +157,17 @@ impl Mesh {
         let c = 1.0 / 4.0;
         // origins of left bottom corner
         // arranged such that the triangle order above works
-        let uv_l = Pnt2::new(0.0 * c, 1.0 * r); // left
-        let uv_r = Pnt2::new(2.0 * c, 1.0 * r); // right
-        let uv_f = Pnt2::new(1.0 * c, 1.0 * r); // front
-        let uv_b = Pnt2::new(3.0 * c, 1.0 * r); // back
-        let uv_d = Pnt2::new(1.0 * c, 0.0 * r); // down
-        let uv_u = Pnt2::new(1.0 * c, 2.0 * r); // up
+        let uv_l = Pnt3::new(0.0 * c, 1.0 * r, 0.0); // left
+        let uv_r = Pnt3::new(2.0 * c, 1.0 * r, 0.0); // right
+        let uv_f = Pnt3::new(1.0 * c, 1.0 * r, 0.0); // front
+        let uv_b = Pnt3::new(3.0 * c, 1.0 * r, 0.0); // back
+        let uv_d = Pnt3::new(1.0 * c, 0.0 * r, 0.0); // down
+        let uv_u = Pnt3::new(1.0 * c, 2.0 * r, 0.0); // up
 
-        let uv_0 = Vec2::new(0.0, r);
-        let uv_1 = Vec2::new(0.0, 0.0);
-        let uv_2 = Vec2::new(c, r);
-        let uv_3 = Vec2::new(c, 0.0);
+        let uv_0 = Vec3::new(0.0, r, 0.0);
+        let uv_1 = Vec3::new(0.0, 0.0, 0.0);
+        let uv_2 = Vec3::new(c, r, 0.0);
+        let uv_3 = Vec3::new(c, 0.0, 0.0);
 
         let mut uvs = vec![];
         for base in &[uv_l, uv_r, uv_f, uv_b, uv_d, uv_u] {

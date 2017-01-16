@@ -69,9 +69,9 @@ static VERTEX_SHADER: &'static str = r#"
 
     in vec3 position;
     in vec3 normal;
-    in vec2 tex_coord;
+    in vec3 tex_coord;
 
-    out vec2 f_tex_coord;
+    out vec3 f_tex_coord;
     out vec3 f_position;
 
     void main() {
@@ -85,14 +85,31 @@ static VERTEX_SHADER: &'static str = r#"
 static FRAGMENT_SHADER: &'static str = r#"
     #version 140
 
-    in vec2 f_tex_coord;
+    in vec3 f_tex_coord;
     in vec3 f_position;
 
     uniform sampler2D tex;
     uniform vec3 player_pos;
 
     void main() {
-        vec4 color = texture(tex, f_tex_coord);
+        vec4 color = texture(tex, f_tex_coord.xy);
+        if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
+            color.rgb = color.rgb * 0.4;
+        gl_FragColor = color;
+    }
+"#;
+
+static FRAGMENT_SHADER_ARRAY: &'static str = r#"
+    #version 140
+
+    in vec3 f_tex_coord;
+    in vec3 f_position;
+
+    uniform sampler2DArray tex;
+    uniform vec3 player_pos;
+
+    void main() {
+        vec4 color = texture(tex, f_tex_coord.xyz);
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color.rgb = color.rgb * 0.4;
         gl_FragColor = color;
@@ -230,7 +247,7 @@ fn run() -> Result<()> {
     let mut world = world::World::new();
 
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
-    let landscape_texture = Rc::new(texture::load_texture(&display, "mappi.png").chain_err(|| "failed to load landscape texture")?);
+    let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png"]).chain_err(|| "failed to load landscape texture")?);
 
     let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
         eh_texture.clone(),
@@ -272,6 +289,8 @@ fn run() -> Result<()> {
                     .chain_err(|| "failed to initialize particle engine")?;
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
+        .unwrap();
+    let program_array = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER_ARRAY, None)
         .unwrap();
 
     let mut ino = INotify::init().chain_err(|| "failed to initialize inotify")?;
@@ -470,7 +489,12 @@ fn run() -> Result<()> {
 
             let body = body.user_data().unwrap().downcast_ref::<body::Body>().unwrap();
 
-            let tex: &glium::Texture2d = &body.texture;
+            let tex = &*body.texture;
+            let prog = match *tex {
+                texture::Texture::Twod(_) => &program,
+                texture::Texture::Array(_) => &program_array,
+            };
+
             body.mesh
                 .draw(&mut target,
                       &uniform! {
@@ -479,7 +503,7 @@ fn run() -> Result<()> {
                       tex: tex,
                       player_pos: player_pos,
                   },
-                      &program,
+                      prog,
                       true,
                       true) // FIXME only do alpha rendering for ball
                 .chain_err(|| "failed to draw mesh")?;

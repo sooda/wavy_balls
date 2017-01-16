@@ -1,11 +1,11 @@
 use body::{Body, BodyShape, BodyConfig};
 use nc;
 use np;
-use glium;
 use math::*;
 use std::rc::Rc;
 use std::cell::RefCell;
 use mesh;
+use texture;
 
 use nc::world::CollisionObject3;
 use np::object::{WorldObject, RigidBodyHandle};
@@ -177,7 +177,7 @@ impl World {
 
     pub fn add_body(&mut self,
                     mesh: Rc<mesh::Mesh>,
-                    texture: Rc<glium::texture::Texture2d>,
+                    texture: Rc<texture::Texture>,
                     shape: BodyShape,
                     config: BodyConfig)
                     -> Rc<RefCell<np::object::RigidBody<f32>>> {

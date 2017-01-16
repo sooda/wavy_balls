@@ -7,7 +7,7 @@ use std::path::Path;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
-pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>, Vec<Pnt2>)> {
+pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>, Vec<Pnt3>)> {
     fn parse_f(tok: &str) -> Result<(isize, Option<isize>, Option<isize>)> {
         let s = tok.split('/').collect::<Vec<_>>();
         Ok(match s.len() {
@@ -42,7 +42,8 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
                                      toks[3].parse().unwrap())
                 .normalize());
         } else if toks[0] == "vt" {
-            obj_texcs.push(Pnt2::new(toks[1].parse().unwrap(), toks[2].parse().unwrap()))
+            let w = toks[2].parse().unwrap_or(0.0);
+            obj_texcs.push(Pnt3::new(toks[1].parse().unwrap(), toks[2].parse().unwrap(), w))
         } else if toks[0] == "f" {
             let (a, b, c) = (parse_f(toks[1])?, parse_f(toks[2])?, parse_f(toks[3])?);
 
@@ -80,7 +81,9 @@ pub fn load_obj<P: AsRef<Path> + ?Sized>(p: &P) -> Result<(Vec<Pnt3>, Vec<Vec3>,
             }
             let texc;
             if a.1.is_none() {
-                texc = (Pnt2::new(0.0, 0.0), Pnt2::new(0.0, 0.0), Pnt2::new(0.0, 0.0));
+                texc = (Pnt3::new(0.0, 0.0, 0.0),
+                        Pnt3::new(0.0, 0.0, 0.0),
+                        Pnt3::new(0.0, 0.0, 0.0));
             } else {
                 texc = (obj_texcs[t_i(a.1.unwrap())],
                         obj_texcs[t_i(b.1.unwrap())],
