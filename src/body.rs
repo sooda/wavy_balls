@@ -70,7 +70,7 @@ pub struct Body {
 }
 
 impl Body {
-    pub fn get_position(&mut self) -> Vec3 {
+    pub fn get_position(&self) -> Vec3 {
         unsafe {
             let v = ode::dBodyGetPosition(self.ode_body);
             Vec3::new(*v.offset(0) as f32,

@@ -3861,6 +3861,7 @@ pub enum _bindgen_ty_23 {
     dParamSuspensionCFM3 = 524,
     dParamERP3 = 525,
 }
+pub type dParam = _bindgen_ty_23;
 pub const dAMotorUser: _bindgen_ty_24 = _bindgen_ty_24::dAMotorUser;
 pub const dAMotorEuler: _bindgen_ty_24 = _bindgen_ty_24::dAMotorEuler;
 #[repr(u32)]

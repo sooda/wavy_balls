@@ -30,6 +30,7 @@ mod obj;
 mod texture;
 mod particle;
 mod input;
+mod gear;
 
 mod ode;
 
@@ -59,6 +60,7 @@ use inotify::ffi::*;
 use math::*;
 use audio::{AudioMixer, JumpSound, HitSound};
 use body::Body;
+use gear::{Gear, dJointTypeHinge, dParamFMax, dParamVel};
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -285,24 +287,15 @@ fn run() -> Result<()> {
     let spinthing = world.add_body(Rc::new(spin_mesh),
                                    spin_texture,
                                    spin_shape,
-                                   body::BodyConfig {  ..Default::default() });
+                                   body::BodyConfig { ..Default::default() });
     spinthing.borrow_mut().set_position(Vec3::new(0.0, -13.0, -6.0));
 
-    let j;
-    {
-        unsafe {
-            j = ode::dJointCreateHinge(world.ode_world(), std::ptr::null_mut());
-            ode::dJointAttach(j, spinthing.borrow().ode_body, std::ptr::null_mut());
-            ode::dJointSetHingeAnchor(j, 0.0, 0.0, -6.0);
-            ode::dJointSetHingeAxis(j, 0.0, 1.0, 0.0);
-            //ode::dBodySetKinematic(spinthing.borrow().ode_body);
-        }
-        unsafe {
-            ode::dBodySetPosition(spinthing.borrow().ode_body, 0.0, -13.0, -6.0);
-            ode::dJointSetHingeParam(j, ode::dParamFMax as i32, 1000.0);
-            ode::dJointSetHingeParam(j, ode::dParamVel as i32, 1.0);
-        }
-    }
+    // this spins around y axis, i.e., on the ground
+    let mut testgear = Gear::new(world.ode_world(), spinthing.clone(), dJointTypeHinge);
+    testgear.set_hinge_anchor(spinthing.borrow().get_position());
+    testgear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
+    testgear.set_hinge_param(dParamFMax, 1000.0);
+    testgear.set_hinge_param(dParamVel, 1.0);
 
     let envmap = texture::load_texture(&display, "cubemap.jpg").chain_err(|| "failed to load environment map")?;
 
@@ -434,11 +427,7 @@ fn run() -> Result<()> {
             });
         }
 
-        unsafe {
-            ode::dBodySetPosition(spinthing.borrow().ode_body, 0.0, -13.0, -6.0);
-            ode::dJointSetHingeParam(j, ode::dParamFMax as i32, 1000.0);
-            ode::dJointSetHingeParam(j, ode::dParamVel as i32, 1.0);
-        }
+        spinthing.borrow_mut().set_position(Vec3::new(0.0, -13.0, -6.0));
 
         // Step the world
         world.step(dt);
@@ -565,10 +554,6 @@ fn run() -> Result<()> {
         target.finish().chain_err(|| "failed to finish frame")?;
 
         std::thread::sleep(std::time::Duration::from_millis(1));
-    }
-
-    unsafe {
-        ode::dJointDestroy(j);
     }
 
     Ok(())
