@@ -107,9 +107,9 @@ impl Body {
     pub fn add_force(&mut self, force: Vec3) {
         unsafe {
             ode::dBodyAddForce(self.ode_body,
-                                force.x as f64,
-                                force.y as f64,
-                                force.z as f64)
+                               force.x as f64,
+                               force.y as f64,
+                               force.z as f64)
         }
     }
     // 0  1  2  3

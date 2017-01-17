@@ -491,7 +491,7 @@ fn run() -> Result<()> {
         force_z += force_mag * input.player.y;
 
         // impulse based:
-         player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
+        player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
 
         // angular momentum based control:
         player.borrow_mut().add_torque(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
