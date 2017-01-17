@@ -246,6 +246,7 @@ fn run() -> Result<()> {
 
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
     let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png", "ruohe.png"]).chain_err(|| "failed to load landscape texture")?);
+    let spin_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load spin texture")?);
 
     let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
         eh_texture.clone(),
@@ -274,6 +275,33 @@ fn run() -> Result<()> {
         eh_texture.clone(),
      body::BodyShape::Sphere{radius: 1.0}, body::BodyConfig::default());
         ball.borrow_mut().set_position(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
+    }
+
+    let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj")
+        .chain_err(|| "failed to load spinthing mesh for draw")?;
+    let spin_shape =
+        body::BodyShape::from_obj("spinthing.obj").chain_err(|| "failed to load spinthing mesh for phys")?;
+
+    let spinthing = world.add_body(Rc::new(spin_mesh),
+                                   spin_texture,
+                                   spin_shape,
+                                   body::BodyConfig {  ..Default::default() });
+    spinthing.borrow_mut().set_position(Vec3::new(0.0, -13.0, -6.0));
+
+    let j;
+    {
+        unsafe {
+            j = ode::dJointCreateHinge(world.ode_world(), std::ptr::null_mut());
+            ode::dJointAttach(j, spinthing.borrow().ode_body, std::ptr::null_mut());
+            ode::dJointSetHingeAnchor(j, 0.0, 0.0, -6.0);
+            ode::dJointSetHingeAxis(j, 0.0, 1.0, 0.0);
+            //ode::dBodySetKinematic(spinthing.borrow().ode_body);
+        }
+        unsafe {
+            ode::dBodySetPosition(spinthing.borrow().ode_body, 0.0, -13.0, -6.0);
+            ode::dJointSetHingeParam(j, ode::dParamFMax as i32, 1000.0);
+            ode::dJointSetHingeParam(j, ode::dParamVel as i32, 1.0);
+        }
     }
 
     let envmap = texture::load_texture(&display, "cubemap.jpg").chain_err(|| "failed to load environment map")?;
@@ -406,6 +434,12 @@ fn run() -> Result<()> {
             });
         }
 
+        unsafe {
+            ode::dBodySetPosition(spinthing.borrow().ode_body, 0.0, -13.0, -6.0);
+            ode::dJointSetHingeParam(j, ode::dParamFMax as i32, 1000.0);
+            ode::dJointSetHingeParam(j, ode::dParamVel as i32, 1.0);
+        }
+
         // Step the world
         world.step(dt);
         particles.step(dt);
@@ -531,6 +565,10 @@ fn run() -> Result<()> {
         target.finish().chain_err(|| "failed to finish frame")?;
 
         std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+
+    unsafe {
+        ode::dJointDestroy(j);
     }
 
     Ok(())

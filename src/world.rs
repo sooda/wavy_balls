@@ -110,6 +110,10 @@ impl World {
         }
     }
 
+    pub fn ode_world(&self) -> ode::dWorldID {
+        self.ode_world
+    }
+
     pub fn ode_space(&self) -> ode::dSpaceID {
         self.ode_space
     }
