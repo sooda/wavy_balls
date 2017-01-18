@@ -31,6 +31,7 @@ mod texture;
 mod particle;
 mod input;
 mod gear;
+mod settings;
 
 mod ode;
 
@@ -61,6 +62,7 @@ use math::*;
 use audio::{AudioMixer, JumpSound, HitSound};
 use body::Body;
 use gear::{Gear, dJointTypeHinge, dParamFMax, dParamVel};
+use settings::Settings;
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -174,6 +176,7 @@ fn run() -> Result<()> {
         ode::dInitODE();
     }
 
+    let settings = Settings::new("settings.txt").chain_err(|| "no settings file found")?;
     let sdl_ctx = sdl2::init().map_err(sdl_err).chain_err(|| "failed to initialize SDL")?;
     let sdl_video = sdl_ctx.video().map_err(sdl_err).chain_err(|| "failed to initialize video")?;
     let _sdl_audio = sdl_ctx.audio().map_err(sdl_err).chain_err(|| "failed to initialize audio")?;
@@ -181,8 +184,8 @@ fn run() -> Result<()> {
     sdl_glattr.set_context_profile(sdl2::video::GLProfile::Core);
     sdl_glattr.set_context_version(3, 3);
 
-    let display_width = 800;
-    let display_height = 600;
+    let display_width = settings.get_u32("display_width");
+    let display_height = settings.get_u32("display_height");
     let display = sdl_video.window("FGJ", display_width, display_height)
         .build_glium()
         .chain_err(|| "failed to initialize glium context")?;
@@ -259,7 +262,7 @@ fn run() -> Result<()> {
                         restitution: 0.0,
                        ..body::BodyConfig::default() }
     );
-    player.borrow_mut().set_position(Vec3::new(0.0, 3.0, 0.0));
+    player.borrow_mut().set_position(settings.get_vec3("player"));
 
     let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
         .chain_err(|| "failed to load level mesh for draw")?;
@@ -288,7 +291,7 @@ fn run() -> Result<()> {
                                    spin_texture,
                                    spin_shape,
                                    body::BodyConfig { ..Default::default() });
-    spinthing.borrow_mut().set_position(Vec3::new(0.0, -13.0, -6.0));
+    spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
 
     // this spins around y axis, i.e., on the ground
     let mut testgear = Gear::new(world.ode_world(), spinthing.clone(), dJointTypeHinge);
@@ -427,7 +430,7 @@ fn run() -> Result<()> {
             });
         }
 
-        spinthing.borrow_mut().set_position(Vec3::new(0.0, -13.0, -6.0));
+        spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
 
         // Step the world
         world.step(dt);
