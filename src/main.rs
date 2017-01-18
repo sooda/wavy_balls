@@ -288,17 +288,34 @@ fn run() -> Result<()> {
         body::BodyShape::from_obj("spinthing.obj").chain_err(|| "failed to load spinthing mesh for phys")?;
 
     let spinthing = world.add_body(Rc::new(spin_mesh),
-                                   spin_texture,
+                                   spin_texture.clone(),
                                    spin_shape,
                                    body::BodyConfig { ..Default::default() });
     spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
 
     // this spins around y axis, i.e., on the ground
     let mut testgear = Gear::new(world.ode_world(), spinthing.clone(), dJointTypeHinge);
-    testgear.set_hinge_anchor(spinthing.borrow().get_position());
     testgear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
     testgear.set_hinge_param(dParamFMax, 1000.0);
     testgear.set_hinge_param(dParamVel, 1.0);
+
+    let mesh = mesh::Mesh::from_obj(&display, "gear.obj")
+        .chain_err(|| "failed to load gear mesh for draw")?;
+    let shape =
+        body::BodyShape::from_obj("gear.obj").chain_err(|| "failed to load gear mesh for phys")?;
+
+
+    let body = world.add_body(Rc::new(mesh),
+                              spin_texture.clone(),
+                              shape,
+                              body::BodyConfig { ..Default::default() });
+
+    body.borrow_mut().set_position(settings.get_vec3("liftgear"));
+    // this spins around x axis, i.e., lifts things up
+    let mut liftgear = Gear::new(world.ode_world(), body.clone(), dJointTypeHinge);
+    liftgear.set_hinge_axis(Vec3::new(1.0, 0.0, 0.0));
+    liftgear.set_hinge_param(dParamFMax, 1000.0);
+    liftgear.set_hinge_param(dParamVel, -1.0);
 
     let envmap = texture::load_texture(&display, "cubemap.jpg").chain_err(|| "failed to load environment map")?;
 
@@ -431,6 +448,7 @@ fn run() -> Result<()> {
         }
 
         spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
+        liftgear.body.borrow_mut().set_position(settings.get_vec3("liftgear"));
 
         // Step the world
         world.step(dt);
