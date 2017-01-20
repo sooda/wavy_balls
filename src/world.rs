@@ -130,8 +130,8 @@ impl World {
             contact_handlers: Vec::new(),
             body_id_counter: 0,
             heightfield: Vec::new(),
-            heightfield_width: 50,
-            heightfield_depth: 50,
+            heightfield_width: ::MAP_RES as i32,
+            heightfield_depth: ::MAP_RES as i32,
         }
     }
 
@@ -224,7 +224,7 @@ impl World {
 
         let heightfield_data = unsafe { ode::dGeomHeightfieldDataCreate() };
 
-        let (width, depth) = (50f64, 50f64);
+        let (width, depth) = (::MAP_SZ as f64, ::MAP_SZ as f64);
 
         let scale = 1.0; // "vertical height scale multiplier"
         let offset = 0.0f64; // vetical height offset

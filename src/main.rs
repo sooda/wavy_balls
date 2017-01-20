@@ -37,6 +37,9 @@ mod settings;
 
 mod ode;
 
+const MAP_SZ: f32 = 200.0f32;
+const MAP_RES: u32 = 200u32;
+
 mod errors {
     error_chain! {
         errors {
@@ -320,9 +323,9 @@ fn run() -> Result<()> {
         for z in 0..world.heightfield_depth-1 {
             let hmp =( z * world.heightfield_width + x) as u32;
             
-            let s = (1.0f32 / world.heightfield_depth as f32) * 51.0;
-            let px = ((x as f32 / world.heightfield_width as f32)) * 51.0 - 25.0;
-            let pz = ((z as f32 / world.heightfield_depth as f32)) * 51.0 - 25.0;
+            let s = (1.0f32 / world.heightfield_depth as f32) * (MAP_SZ + 1.0);
+            let px = ((x as f32 / world.heightfield_width as f32)) * (MAP_SZ + 1.0) - (MAP_SZ / 2.0);
+            let pz = ((z as f32 / world.heightfield_depth as f32)) * (MAP_SZ + 1.0) - (MAP_SZ / 2.0);
             
             let st = world.heightfield_width as u32;
             
