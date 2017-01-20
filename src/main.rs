@@ -191,7 +191,7 @@ fn run() -> Result<()> {
     let display = sdl_video.window("FGJ", display_width, display_height)
         .build_glium()
         .chain_err(|| "failed to initialize glium context")?;
-        
+
     let nanovg = nanovg::Context::create_gl3(nanovg::ANTIALIAS | nanovg::STENCIL_STROKES);
     let _nanovg_font = nanovg.create_font("main", "liberationsans.ttf").unwrap();
 
@@ -253,9 +253,10 @@ fn run() -> Result<()> {
 
 
     let mut world = world::World::new();
+    world.setup_dynamic_heightfield(); // do not move, this installs a self pointer to a C callback that shouldn't change
 
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
-    let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png", "ruohe.png"]).chain_err(|| "failed to load landscape texture")?);
+    // let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png", "ruohe.png"]).chain_err(|| "failed to load landscape texture")?);
     let spin_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load spin texture")?);
     let diam_texture = Rc::new(texture::load_texture(&display, "diamond.png").chain_err(|| "failed to load diamond texture")?);
 
@@ -273,17 +274,17 @@ fn run() -> Result<()> {
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
 
-    let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
-        .chain_err(|| "failed to load level mesh for draw")?;
-    let world_shape =
-        Rc::new(body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?);
+    // let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
+    //    .chain_err(|| "failed to load level mesh for draw")?;
+    // let world_shape =
+    //    Rc::new(body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?);
 
-    let landscape = world.add_body(Rc::new(world_mesh),
-                                   landscape_texture,
-                                   world_shape,
-                                   body::BodyConfig { fixed: true, ..Default::default() });
-    landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
-
+    // let landscape = world.add_body(Rc::new(world_mesh),
+    // landscape_texture,
+    // world_shape,
+    // body::BodyConfig { fixed: true, ..Default::default() });
+    // landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
+    //
     for i in 0..10i32 {
         let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
         eh_texture.clone(),
@@ -608,13 +609,13 @@ fn run() -> Result<()> {
         nanovg.line_to(10.0, 100.0);
         nanovg.line_to(175.0, 100.0);
         nanovg.line_to(175.0, 10.0);
-        nanovg.fill_color(nanovg::Color::rgba(0,0,0,128));
+        nanovg.fill_color(nanovg::Color::rgba(0, 0, 0, 128));
         nanovg.fill();
 
         nanovg.font_size(32.0);
         nanovg.font_face("main");
-        nanovg.stroke_color(nanovg::Color::rgba(255,255,255,255));
-        nanovg.fill_color(nanovg::Color::rgba(255,255,255,255));
+        nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
+        nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
         nanovg.text(20.0, 90.0, &format!("fgj17"));
 
         nanovg.end_frame();

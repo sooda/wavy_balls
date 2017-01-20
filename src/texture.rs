@@ -32,9 +32,9 @@ pub fn load_texture<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F, path: &P) ->
         .chain_err(|| "failed to load texture to GPU")
 }
 
-pub fn load_texture_array<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F,
-                                                              paths: &[&P])
-                                                              -> Result<Texture> {
+pub fn _load_texture_array<F: Facade, P: AsRef<Path> + ?Sized>(facade: &F,
+                                                               paths: &[&P])
+                                                               -> Result<Texture> {
     let raw: Result<Vec<RawImage2d<'static, u8>>> = paths.iter().map(|&p| load_image(p)).collect();
     let raw = raw?;
 

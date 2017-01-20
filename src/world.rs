@@ -1,4 +1,4 @@
-use body::{Body, BodyShape, BodyConfig};
+use body::{Body, BodyShape, BodyConfig, BODY_CATEGORY_WORLD_BIT, BODY_COLLIDE_WORLD};
 use ode;
 use std;
 use math::*;
@@ -12,38 +12,41 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
                                    ode_g2: ode::dGeomID) {
     let ode_b1 = ode::dGeomGetBody(ode_g1);
     let ode_b2 = ode::dGeomGetBody(ode_g2);
-
     let mut world: &mut World = &mut *(user_data as *mut World);
 
-    // find references to Body instances
-    let mut bi1 = ode::dBodyGetData(ode_b1) as u64;
-    let mut bi2 = ode::dBodyGetData(ode_b2) as u64;
+    let (mut b1, mut b2) = if ode_b1 != std::ptr::null_mut() && ode_b2 != std::ptr::null_mut() {
+        // find references to Body instances
+        let mut bi1 = ode::dBodyGetData(ode_b1) as u64;
+        let mut bi2 = ode::dBodyGetData(ode_b2) as u64;
 
-    // bi1 and bi2 are the ids of some bodies in the bodies vec
-    // find indices of those bodies first and then obtain two mutable references to them
-    for (i, obj) in world.bodies.iter().enumerate() {
-        if obj.borrow().id == bi1 {
-            bi1 = i as u64;
-            break;
+        // bi1 and bi2 are the ids of some bodies in the bodies vec
+        // find indices of those bodies first and then obtain two mutable references to them
+        for (i, obj) in world.bodies.iter().enumerate() {
+            if obj.borrow().id == bi1 {
+                bi1 = i as u64;
+                break;
+            }
         }
-    }
-    for (i, obj) in world.bodies.iter().enumerate() {
-        if obj.borrow().id == bi2 {
-            bi2 = i as u64;
-            break;
+        for (i, obj) in world.bodies.iter().enumerate() {
+            if obj.borrow().id == bi2 {
+                bi2 = i as u64;
+                break;
+            }
         }
-    }
-    assert!(bi1 != bi2);
+        assert!(bi1 != bi2);
 
-    let (mut b1, mut b2) = if bi1 < bi2 {
-        let (begin, end) = world.bodies.split_at_mut(bi2 as usize);
-        (begin[bi1 as usize].borrow_mut(), end[0].borrow_mut())
+        if bi1 < bi2 {
+            let (begin, end) = world.bodies.split_at_mut(bi2 as usize);
+            (Some(begin[bi1 as usize].borrow_mut()), Some(end[0].borrow_mut()))
+        } else {
+            let (begin, end) = world.bodies.split_at_mut(bi1 as usize);
+            (Some(end[0].borrow_mut()), Some(begin[bi2 as usize].borrow_mut()))
+        }
     } else {
-        let (begin, end) = world.bodies.split_at_mut(bi1 as usize);
-        (end[0].borrow_mut(), begin[bi2 as usize].borrow_mut())
+        (None, None)
     };
 
-    const MAX_CONTACTS: usize = 1024;
+    const MAX_CONTACTS: usize = 100;
     let mut contact: [ode::dContact; MAX_CONTACTS] = std::mem::zeroed();
 
     let numc = ode::dCollide(ode_g1,
@@ -68,16 +71,26 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
         // contact.surface.mode |= ode::dContactBounce as i32;
         contact.surface.mode |= ode::dContactRolling as i32;
 
-        for mut handler in world.contact_handlers.iter_mut() {
-            handler(&mut *b1, &mut *b2, contact);
+        // NOTE: handler if skipped if some geoms have no associated body
+        if let (&mut Some(ref mut b1), &mut Some(ref mut b2)) = (&mut b1, &mut b2) {
+            for mut handler in world.contact_handlers.iter_mut() {
+                handler(&mut *b1, &mut *b2, contact);
+            }
         }
         let id = ode::dJointCreateContact(world.ode_world, world.ode_contact_group, contact);
         ode::dJointAttach(id, ode_b1, ode_b2);
     }
 }
 
-
 type ContactHandlerT = Box<FnMut(&mut Body, &mut Body, &mut ode::dContact) + 'static>;
+
+unsafe extern "C" fn heightfield_callback(user_data: *mut std::os::raw::c_void,
+                                          x: i32,
+                                          z: i32)
+                                          -> f64 {
+    let world: &mut World = &mut *(user_data as *mut World);
+    world.heightfield[(x + z * world.heightfield_width) as usize] as f64
+}
 
 pub struct World {
     ode_world: ode::dWorldID,
@@ -87,6 +100,10 @@ pub struct World {
     leftover_dt: f32,
     contact_handlers: Vec<ContactHandlerT>,
     body_id_counter: u64,
+
+    heightfield: Vec<f32>,
+    heightfield_width: i32,
+    heightfield_depth: i32,
 }
 impl World {
     pub fn new() -> World {
@@ -112,6 +129,9 @@ impl World {
             bodies: Vec::new(),
             contact_handlers: Vec::new(),
             body_id_counter: 0,
+            heightfield: Vec::new(),
+            heightfield_width: 50,
+            heightfield_depth: 50,
         }
     }
 
@@ -188,6 +208,56 @@ impl World {
         self.bodies.push(body.clone());
         self.body_id_counter += 1;
         body
+    }
+
+    pub fn setup_dynamic_heightfield(&mut self) {
+
+        self.heightfield.resize((self.heightfield_width * self.heightfield_depth) as usize,
+                                0.0);
+
+        for x in 0..self.heightfield_width {
+            for z in 0..self.heightfield_depth {
+                self.heightfield[(x + z * self.heightfield_width) as usize] =
+                    ((x as f32) / self.heightfield_width as f32) * 5.0;
+            }
+        }
+
+        let heightfield_data = unsafe { ode::dGeomHeightfieldDataCreate() };
+
+        let (width, depth) = (50f64, 50f64);
+
+        let scale = 1.0; // "vertical height scale multiplier"
+        let offset = 0.0f64; // vetical height offset
+        let thickness = 0.1;
+        let wrap = false as i32; // whether to wrap the heightfield infinitely
+
+        unsafe {
+            ode::dGeomHeightfieldDataBuildCallback(heightfield_data,
+                                                   self as *mut _ as *mut std::os::raw::c_void, // pointer to self as user ptr
+                                                   Some(heightfield_callback),
+                                                   width,
+                                                   depth,
+                                                   self.heightfield_width,
+                                                   self.heightfield_depth,
+                                                   scale,
+                                                   offset,
+                                                   thickness,
+                                                   wrap);
+            ode::dGeomHeightfieldDataSetBounds(heightfield_data,
+                                               -0.0, // min height
+                                               5.0 /* max height */);
+        };
+
+        let geom =
+            unsafe { ode::dCreateHeightfield(self.ode_space, heightfield_data, true as i32) };
+
+        // let ode_body = unsafe { ode::dBodyCreate(self.ode_world) };
+        unsafe {
+            // ode::dGeomSetBody(geom, std::ptr::null_mut());
+            ode::dGeomSetPosition(geom, 0.0, 0.0, 0.0);
+            ode::dGeomSetCategoryBits(geom, BODY_CATEGORY_WORLD_BIT);
+            ode::dGeomSetCollideBits(geom, BODY_COLLIDE_WORLD);
+        };
     }
 
     // Advance the world state forwards by dt seconds
