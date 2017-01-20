@@ -266,16 +266,16 @@ impl World {
         };
     }
 
-    pub fn del_body(&mut self, body_id: u64/*body: &Body*/) {
+    pub fn del_body(&mut self, body_id: u64 /* body: &Body */) {
         // assume it's found because it's added earlier
-        //let idx = self.bodies.iter().position(|ref x| *x.borrow() == *body).unwrap();
+        // let idx = self.bodies.iter().position(|ref x| *x.borrow() == *body).unwrap();
         let idx = self.bodies.iter().position(|ref x| x.borrow().id == body_id).unwrap();
         unsafe {
             ode::dSpaceRemove(self.ode_space, self.bodies[idx].borrow().ode_geom);
-            /* Should do these when the body gets dropped
-            ode::dGeomDestroy(body.ode_geom);
-            ode::dBodyDestroy(body.ode_body);
-            */
+            // Should do these when the body gets dropped
+            // ode::dGeomDestroy(body.ode_geom);
+            // ode::dBodyDestroy(body.ode_body);
+            //
         }
         self.bodies.remove(idx);
     }

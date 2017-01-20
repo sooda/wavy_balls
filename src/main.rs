@@ -304,12 +304,12 @@ fn run() -> Result<()> {
 
 
     let world = Rc::new(RefCell::new(world::World::new()));
-        let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
-        let landscape_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load landscape texture")?);
-        let spin_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load spin texture")?);
-        let diam_texture = Rc::new(texture::load_texture(&display, "diamond.png").chain_err(|| "failed to load diamond texture")?);
+    let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
+    let landscape_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load landscape texture")?);
+    let spin_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load spin texture")?);
+    let diam_texture = Rc::new(texture::load_texture(&display, "diamond.png").chain_err(|| "failed to load diamond texture")?);
 
-        let player = world.borrow_mut().add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
+    let player = world.borrow_mut().add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
             eh_texture.clone(),
                        Rc::new(body::BodyShape::Sphere{radius: 1.0}),
                        body::BodyConfig{
@@ -320,12 +320,12 @@ fn run() -> Result<()> {
                            collide_bits: body::BODY_COLLIDE_PLAYER,
                            ..body::BodyConfig::default() }
         );
-        player.borrow_mut().set_position(settings.get_vec3("player"));
-        player.borrow_mut().set_finite_rotation_mode(true);
-        
-        if settings.get_u32("heightfield") == 1 {
-            world.borrow_mut().setup_dynamic_heightfield(); // do not move, this installs a self pointer to a C callback that shouldn't change
-        }
+    player.borrow_mut().set_position(settings.get_vec3("player"));
+    player.borrow_mut().set_finite_rotation_mode(true);
+
+    if settings.get_u32("heightfield") == 1 {
+        world.borrow_mut().setup_dynamic_heightfield(); // do not move, this installs a self pointer to a C callback that shouldn't change
+    }
 
     let hm_tex = texture::load_texture(&display, "ground.png").chain_err(|| "failed to loda ground texture")?;
 
@@ -395,10 +395,11 @@ fn run() -> Result<()> {
         let world_shape =
            Rc::new(body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?);
 
-        let landscape = world.borrow_mut().add_body(Rc::new(world_mesh),
-        landscape_texture,
-        world_shape,
-        body::BodyConfig { fixed: true, ..Default::default() });
+        let landscape =
+            world.borrow_mut().add_body(Rc::new(world_mesh),
+                                        landscape_texture,
+                                        world_shape,
+                                        body::BodyConfig { fixed: true, ..Default::default() });
         landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
     }
 
@@ -433,11 +434,7 @@ fn run() -> Result<()> {
         let diamond_collision_handler =
             move |o1: &mut Body, o2: &mut Body, _contact: &mut ode::dContact| {
                 if o1.id == plr_id || o2.id == plr_id {
-                    let (_player, diamond) = if o1.id == plr_id {
-                        (o1, o2)
-                    } else {
-                        (o2, o1)
-                    };
+                    let (_player, diamond) = if o1.id == plr_id { (o1, o2) } else { (o2, o1) };
                     if diamonds.borrow().contains(&diamond.id) {
                         del_diamonds.borrow_mut().insert(diamond.id);
                         // don't cause physical collision
@@ -458,17 +455,19 @@ fn run() -> Result<()> {
         Rc::new(body::BodyShape::from_obj("spinthing.obj").chain_err(|| "failed to load spinthing mesh for phys")?);
 
     let spinthing = world.borrow_mut().add_body(Rc::new(spin_mesh),
-                                   spin_texture.clone(),
-                                   spin_shape,
-                                   body::BodyConfig {
-                                       category_bits: body::BODY_CATEGORY_GEAR_BIT,
-                                       collide_bits: body::BODY_COLLIDE_GEAR,
-                                       ..Default::default()
-                                   });
+                                                spin_texture.clone(),
+                                                spin_shape,
+                                                body::BodyConfig {
+                                                    category_bits: body::BODY_CATEGORY_GEAR_BIT,
+                                                    collide_bits: body::BODY_COLLIDE_GEAR,
+                                                    ..Default::default()
+                                                });
     spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
 
     // this spins around y axis, i.e., on the ground
-    let mut testgear = Gear::new(world.borrow_mut().ode_world(), spinthing.clone(), dJointTypeHinge);
+    let mut testgear = Gear::new(world.borrow_mut().ode_world(),
+                                 spinthing.clone(),
+                                 dJointTypeHinge);
     testgear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
     testgear.set_hinge_param(dParamFMax, 1000.0);
     testgear.set_hinge_param(dParamVel, 1.0);
@@ -480,17 +479,19 @@ fn run() -> Result<()> {
 
 
     let body = world.borrow_mut().add_body(Rc::new(mesh),
-                              spin_texture.clone(),
-                              shape,
-                              body::BodyConfig {
-                                  category_bits: body::BODY_CATEGORY_GEAR_BIT,
-                                  collide_bits: body::BODY_COLLIDE_GEAR,
-                                  ..Default::default()
-                              });
+                                           spin_texture.clone(),
+                                           shape,
+                                           body::BodyConfig {
+                                               category_bits: body::BODY_CATEGORY_GEAR_BIT,
+                                               collide_bits: body::BODY_COLLIDE_GEAR,
+                                               ..Default::default()
+                                           });
 
     body.borrow_mut().set_position(settings.get_vec3("liftgear"));
     // this spins around x axis, i.e., lifts things up
-    let mut liftgear = Gear::new(world.borrow_mut().ode_world(), body.clone(), dJointTypeHinge);
+    let mut liftgear = Gear::new(world.borrow_mut().ode_world(),
+                                 body.clone(),
+                                 dJointTypeHinge);
     liftgear.set_hinge_axis(Vec3::new(1.0, 0.0, 0.0));
     liftgear.set_hinge_param(dParamFMax, 1000.0);
     liftgear.set_hinge_param(dParamVel, -1.0);
@@ -726,7 +727,7 @@ fn run() -> Result<()> {
                   false,
                   false)
             .chain_err(|| "failed to draw cubemap")?;
-            
+
         if settings.get_u32("heightfield") == 1 {
             for v in hm_buf.map().iter_mut() {
                 v.h = world.borrow().heightfield[v.hmp as usize];
@@ -743,7 +744,7 @@ fn run() -> Result<()> {
                 ..Default::default()
             };
             if settings.get_u32("heightfield") == 1 {
-            target.draw(&hm_buf,
+                target.draw(&hm_buf,
                       &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
                       &hm_prog,
                       &uniform! { perspective: *projection.as_ref(), modelview: *cam_view.as_ref(),
