@@ -263,6 +263,7 @@ fn run() -> Result<()> {
                        ..body::BodyConfig::default() }
     );
     player.borrow_mut().set_position(settings.get_vec3("player"));
+    player.borrow_mut().set_finite_rotation_mode(true);
 
     let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
         .chain_err(|| "failed to load level mesh for draw")?;

@@ -99,6 +99,11 @@ impl World {
 
         let ode_space = unsafe { ode::dHashSpaceCreate(std::ptr::null_mut()) };
 
+        // Set damping parameters
+        unsafe {
+            ode::dWorldSetDamping(ode_world, 0.002 /* linear */, 0.002 /* angular */);
+        };
+
         World {
             ode_world: ode_world,
             ode_space: ode_space,

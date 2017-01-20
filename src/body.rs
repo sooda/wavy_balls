@@ -138,4 +138,11 @@ impl Body {
                              1.0)
         }
     }
+
+    pub fn set_finite_rotation_mode(&mut self, enabled: bool) {
+        // true: allegedly stabler fast speed rotation
+        unsafe {
+            ode::dBodySetFiniteRotationMode(self.ode_body, enabled as i32);
+        }
+    }
 }
