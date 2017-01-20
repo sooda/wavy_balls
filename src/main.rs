@@ -257,10 +257,11 @@ fn run() -> Result<()> {
     let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
     let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png", "ruohe.png"]).chain_err(|| "failed to load landscape texture")?);
     let spin_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load spin texture")?);
+    let diam_texture = Rc::new(texture::load_texture(&display, "diamond.png").chain_err(|| "failed to load diamond texture")?);
 
     let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
         eh_texture.clone(),
-                   body::BodyShape::Sphere{radius: 1.0},
+                   Rc::new(body::BodyShape::Sphere{radius: 1.0}),
                    body::BodyConfig{
                        friction: 3.0,
                        density: 0.1,
@@ -275,7 +276,7 @@ fn run() -> Result<()> {
     let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
         .chain_err(|| "failed to load level mesh for draw")?;
     let world_shape =
-        body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?;
+        Rc::new(body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?);
 
     let landscape = world.add_body(Rc::new(world_mesh),
                                    landscape_texture,
@@ -286,14 +287,30 @@ fn run() -> Result<()> {
     for i in 0..10i32 {
         let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
         eh_texture.clone(),
-     body::BodyShape::Sphere{radius: 1.0}, body::BodyConfig::default());
+     Rc::new(body::BodyShape::Sphere{radius: 1.0}), body::BodyConfig::default());
         ball.borrow_mut().set_position(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
     }
+
+    let mut diamonds = Vec::new();
+    let diam_shape =
+        Rc::new(body::BodyShape::from_obj("diamond.obj").chain_err(|| "failed to load diamond mesh for phys")?);
+    let dstart = settings.get_vec3("diamondstart");
+    let ddiff = settings.get_vec3("diamonddiff");
+    for i in 0..settings.get_u32("diamondcount") {
+        let diamond = world.add_body(
+            Rc::new(mesh::Mesh::from_obj(&display, "diamond.obj").chain_err(|| "failed to load diamond mesh")?),
+            diam_texture.clone(),
+            diam_shape.clone(),
+            body::BodyConfig { fixed: true, ..Default::default() });
+        diamond.borrow_mut().set_position(dstart + i as f32 * ddiff);
+        diamonds.push(diamond);
+    }
+    // TODO: diamond animation
 
     let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj")
         .chain_err(|| "failed to load spinthing mesh for draw")?;
     let spin_shape =
-        body::BodyShape::from_obj("spinthing.obj").chain_err(|| "failed to load spinthing mesh for phys")?;
+        Rc::new(body::BodyShape::from_obj("spinthing.obj").chain_err(|| "failed to load spinthing mesh for phys")?);
 
     let spinthing = world.add_body(Rc::new(spin_mesh),
                                    spin_texture.clone(),
@@ -314,7 +331,7 @@ fn run() -> Result<()> {
     let mesh = mesh::Mesh::from_obj(&display, "gear.obj")
         .chain_err(|| "failed to load gear mesh for draw")?;
     let shape =
-        body::BodyShape::from_obj("gear.obj").chain_err(|| "failed to load gear mesh for phys")?;
+        Rc::new(body::BodyShape::from_obj("gear.obj").chain_err(|| "failed to load gear mesh for phys")?);
 
 
     let body = world.add_body(Rc::new(mesh),

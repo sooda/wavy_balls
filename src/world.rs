@@ -130,13 +130,13 @@ impl World {
     pub fn add_body(&mut self,
                     mesh: Rc<mesh::Mesh>,
                     texture: Rc<texture::Texture>,
-                    shape: BodyShape,
+                    shape: Rc<BodyShape>,
                     config: BodyConfig)
                     -> Rc<RefCell<Body>> {
 
         let ode_body = unsafe { ode::dBodyCreate(self.ode_world) };
 
-        let ode_geom = match shape {
+        let ode_geom = match *shape {
             BodyShape::Sphere { radius } => unsafe {
                 ode::dCreateSphere(self.ode_space, radius as f64)
             },
