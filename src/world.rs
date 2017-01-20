@@ -98,6 +98,7 @@ pub struct World {
     ode_contact_group: ode::dJointGroupID,
     bodies: Vec<Rc<RefCell<Body>>>,
     leftover_dt: f32,
+    accum_dt: f32,
     contact_handlers: Vec<ContactHandlerT>,
     body_id_counter: u64,
 
@@ -126,6 +127,7 @@ impl World {
             ode_space: ode_space,
             ode_contact_group: unsafe { ode::dJointGroupCreate(0) },
             leftover_dt: 0.0,
+            accum_dt: 0.0,
             bodies: Vec::new(),
             contact_handlers: Vec::new(),
             body_id_counter: 0,
@@ -244,14 +246,13 @@ impl World {
                                                    thickness,
                                                    wrap);
             ode::dGeomHeightfieldDataSetBounds(heightfield_data,
-                                               -0.0, // min height
+                                               -5.0, // min height
                                                5.0 /* max height */);
         };
 
         let geom =
             unsafe { ode::dCreateHeightfield(self.ode_space, heightfield_data, true as i32) };
 
-        // let ode_body = unsafe { ode::dBodyCreate(self.ode_world) };
         unsafe {
             // ode::dGeomSetBody(geom, std::ptr::null_mut());
             ode::dGeomSetPosition(geom, 0.0, 0.0, 0.0);
@@ -266,7 +267,16 @@ impl World {
 
         while self.leftover_dt >= PHYS_DT {
             self.leftover_dt -= PHYS_DT;
+            self.accum_dt += PHYS_DT;
 
+            for x in 0..self.heightfield_width {
+                for z in 0..self.heightfield_depth {
+                    self.heightfield[(x + z * self.heightfield_width) as usize] =
+                        (((x as f32) / self.heightfield_width as f32 * 20.0) +
+                         self.accum_dt * 0.25)
+                            .sin() * 5.0;
+                }
+            }
             unsafe {
                 ode::dSpaceCollide(self.ode_space,
                                    self as *mut _ as *mut std::os::raw::c_void,

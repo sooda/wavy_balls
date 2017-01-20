@@ -322,34 +322,66 @@ fn run() -> Result<()> {
     );
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
-    
+
     let hm_tex = texture::load_texture(&display, "ground.png").chain_err(|| "failed to loda ground texture")?;
-    
+
     let mut plane_verts = vec![];
-    for x in 0..world.heightfield_width-1 {
-        for z in 0..world.heightfield_depth-1 {
-            let hmp =( z * world.heightfield_width + x) as u32;
-            
+    for x in 0..world.heightfield_width - 1 {
+        for z in 0..world.heightfield_depth - 1 {
+            let hmp = (z * world.heightfield_width + x) as u32;
+
             let tx = x as f32 / world.heightfield_width as f32;
             let tz = z as f32 / world.heightfield_depth as f32;
             let ts = 1.0f32 / world.heightfield_depth as f32;
-            
+
             let s = (1.0f32 / world.heightfield_depth as f32) * (MAP_SZ + 1.0);
-            let px = ((x as f32 / world.heightfield_width as f32)) * (MAP_SZ + 1.0) - (MAP_SZ / 2.0);
-            let pz = ((z as f32 / world.heightfield_depth as f32)) * (MAP_SZ + 1.0) - (MAP_SZ / 2.0);
-            
+            let px = ((x as f32 / world.heightfield_width as f32)) * (MAP_SZ + 1.0) -
+                     (MAP_SZ / 2.0);
+            let pz = ((z as f32 / world.heightfield_depth as f32)) * (MAP_SZ + 1.0) -
+                     (MAP_SZ / 2.0);
+
             let st = world.heightfield_width as u32;
-            
-            plane_verts.push(HmapVertex { pos: [px  , pz  ], tex: [tx   , tz   ], h: 0.0, hmp: hmp });
-            plane_verts.push(HmapVertex { pos: [px+s, pz  ], tex: [tx+ts, tz   ], h: 0.0, hmp: hmp+1 });
-            plane_verts.push(HmapVertex { pos: [px  , pz+s], tex: [tx   , tz+ts], h: 0.0, hmp: hmp+st });
-            
-            plane_verts.push(HmapVertex { pos: [px+s, pz  ], tex: [tx+ts, tz   ], h: 0.0, hmp: hmp+1 });
-            plane_verts.push(HmapVertex { pos: [px+s, pz+s], tex: [tx+ts, tz+ts], h: 0.0, hmp: hmp+1+st });
-            plane_verts.push(HmapVertex { pos: [px  , pz+s], tex: [tx   , tz+ts], h: 0.0, hmp: hmp+st });
+
+            plane_verts.push(HmapVertex {
+                pos: [px, pz],
+                tex: [tx, tz],
+                h: 0.0,
+                hmp: hmp,
+            });
+            plane_verts.push(HmapVertex {
+                pos: [px + s, pz],
+                tex: [tx + ts, tz],
+                h: 0.0,
+                hmp: hmp + 1,
+            });
+            plane_verts.push(HmapVertex {
+                pos: [px, pz + s],
+                tex: [tx, tz + ts],
+                h: 0.0,
+                hmp: hmp + st,
+            });
+
+            plane_verts.push(HmapVertex {
+                pos: [px + s, pz],
+                tex: [tx + ts, tz],
+                h: 0.0,
+                hmp: hmp + 1,
+            });
+            plane_verts.push(HmapVertex {
+                pos: [px + s, pz + s],
+                tex: [tx + ts, tz + ts],
+                h: 0.0,
+                hmp: hmp + 1 + st,
+            });
+            plane_verts.push(HmapVertex {
+                pos: [px, pz + s],
+                tex: [tx, tz + ts],
+                h: 0.0,
+                hmp: hmp + st,
+            });
         }
     }
-    
+
     let mut hm_buf = glium::VertexBuffer::dynamic(&display, &plane_verts).chain_err(|| "failed to create hmap buffer")?;
     let hm_prog = glium::Program::from_source(&display, HMAP_VS, HMAP_FS, None).chain_err(|| "failed to create hmap program")?;
 
@@ -649,13 +681,13 @@ fn run() -> Result<()> {
                   false,
                   false)
             .chain_err(|| "failed to draw cubemap")?;
-            
+
         {
             for v in hm_buf.map().iter_mut() {
                 v.h = world.heightfield[v.hmp as usize];
             }
         }
-            
+
         let player_pos = player.borrow_mut().get_position();
         {
             use glium::draw_parameters::{DepthTest, BackfaceCullingMode};
@@ -666,11 +698,11 @@ fn run() -> Result<()> {
                 ..Default::default()
             };
             target.draw(&hm_buf,
-                        &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-                        &hm_prog,
-                        &uniform! { perspective: *projection.as_ref(), modelview: *cam_view.as_ref(),
+                      &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+                      &hm_prog,
+                      &uniform! { perspective: *projection.as_ref(), modelview: *cam_view.as_ref(),
                             player_pos: *player_pos.as_ref(), texs: &hm_tex },
-                        &params);
+                      &params);
         }
 
         for body in world.bodies() {
