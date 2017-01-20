@@ -7,6 +7,7 @@ use math::*;
 use errors::*;
 use std::rc::Rc;
 use std::path::Path;
+use std;
 
 pub enum BodyShape {
     Sphere { radius: f32 },
@@ -83,6 +84,12 @@ pub struct Body {
     pub ode_body: ode::dBodyID,
     pub ode_geom: ode::dGeomID,
     pub id: u64,
+}
+
+impl std::cmp::PartialEq for Body {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 
 impl Body {

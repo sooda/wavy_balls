@@ -71,18 +71,23 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
         // contact.surface.mode |= ode::dContactBounce as i32;
         contact.surface.mode |= ode::dContactRolling as i32;
 
+        let mut ignore_collision = false;
         // NOTE: handler if skipped if some geoms have no associated body
         if let (&mut Some(ref mut b1), &mut Some(ref mut b2)) = (&mut b1, &mut b2) {
             for mut handler in world.contact_handlers.iter_mut() {
-                handler(&mut *b1, &mut *b2, contact);
+                if handler(&mut *b1, &mut *b2, contact) {
+                    ignore_collision = true;
+                }
             }
         }
-        let id = ode::dJointCreateContact(world.ode_world, world.ode_contact_group, contact);
-        ode::dJointAttach(id, ode_b1, ode_b2);
+        if !ignore_collision {
+            let id = ode::dJointCreateContact(world.ode_world, world.ode_contact_group, contact);
+            ode::dJointAttach(id, ode_b1, ode_b2);
+        }
     }
 }
 
-type ContactHandlerT = Box<FnMut(&mut Body, &mut Body, &mut ode::dContact) + 'static>;
+type ContactHandlerT = Box<FnMut(&mut Body, &mut Body, &mut ode::dContact) -> bool + 'static>;
 
 unsafe extern "C" fn heightfield_callback(user_data: *mut std::os::raw::c_void,
                                           x: i32,
@@ -261,20 +266,36 @@ impl World {
         };
     }
 
+    pub fn del_body(&mut self, body_id: u64/*body: &Body*/) {
+        // assume it's found because it's added earlier
+        //let idx = self.bodies.iter().position(|ref x| *x.borrow() == *body).unwrap();
+        let idx = self.bodies.iter().position(|ref x| x.borrow().id == body_id).unwrap();
+        unsafe {
+            ode::dSpaceRemove(self.ode_space, self.bodies[idx].borrow().ode_geom);
+            /* Should do these when the body gets dropped
+            ode::dGeomDestroy(body.ode_geom);
+            ode::dBodyDestroy(body.ode_body);
+            */
+        }
+        self.bodies.remove(idx);
+    }
+
     // Advance the world state forwards by dt seconds
-    pub fn step(&mut self, frame_dt: f32) {
+    pub fn step(&mut self, frame_dt: f32, h: bool) {
         self.leftover_dt += frame_dt;
 
         while self.leftover_dt >= PHYS_DT {
             self.leftover_dt -= PHYS_DT;
-            self.accum_dt += PHYS_DT;
+            if h {
+                self.accum_dt += PHYS_DT;
 
-            for x in 0..self.heightfield_width {
-                for z in 0..self.heightfield_depth {
-                    self.heightfield[(x + z * self.heightfield_width) as usize] =
-                        (((x as f32) / self.heightfield_width as f32 * 20.0) +
-                         self.accum_dt * 0.25)
-                            .sin() * 5.0;
+                for x in 0..self.heightfield_width {
+                    for z in 0..self.heightfield_depth {
+                        self.heightfield[(x + z * self.heightfield_width) as usize] =
+                            (((x as f32) / self.heightfield_width as f32 * 20.0) +
+                             self.accum_dt * 0.25)
+                                .sin() * 5.0;
+                    }
                 }
             }
             unsafe {
@@ -287,7 +308,7 @@ impl World {
             }
         }
     }
-    pub fn bodies<'a>(&'a mut self) -> &'a mut Vec<Rc<RefCell<Body>>> {
-        &mut self.bodies
+    pub fn bodies<'a>(&'a self) -> &'a Vec<Rc<RefCell<Body>>> {
+        &self.bodies
     }
 }

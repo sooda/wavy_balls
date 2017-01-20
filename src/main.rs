@@ -1,4 +1,4 @@
-// #![deny(warnings)]
+#![deny(warnings)]
 
 #[macro_use]
 extern crate glium;
@@ -56,7 +56,9 @@ use errors::*;
 use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::path::Path;
+use std::collections::HashSet;
 
 use na::{ToHomogeneous, Rotation3, Norm};
 use glium::Surface;
@@ -301,46 +303,48 @@ fn run() -> Result<()> {
     let mut last_t = sdl_timer.ticks();
 
 
-    let mut world = world::World::new();
-    world.setup_dynamic_heightfield(); // do not move, this installs a self pointer to a C callback that shouldn't change
+    let world = Rc::new(RefCell::new(world::World::new()));
+        let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
+        let landscape_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load landscape texture")?);
+        let spin_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load spin texture")?);
+        let diam_texture = Rc::new(texture::load_texture(&display, "diamond.png").chain_err(|| "failed to load diamond texture")?);
 
-    let eh_texture = Rc::new(texture::load_texture(&display, "eh.png").chain_err(|| "failed to load ball texture")?);
-    // let landscape_texture = Rc::new(texture::load_texture_array(&display, &["mappi.png", "ruohe.png"]).chain_err(|| "failed to load landscape texture")?);
-    let spin_texture = Rc::new(texture::load_texture(&display, "ruohe.png").chain_err(|| "failed to load spin texture")?);
-    let diam_texture = Rc::new(texture::load_texture(&display, "diamond.png").chain_err(|| "failed to load diamond texture")?);
-
-    let player = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
-        eh_texture.clone(),
-                   Rc::new(body::BodyShape::Sphere{radius: 1.0}),
-                   body::BodyConfig{
-                       friction: 3.0,
-                       density: 0.1,
-                       restitution: 0.0,
-                       category_bits: body::BODY_CATEGORY_PLAYER_BIT,
-                       collide_bits: body::BODY_COLLIDE_PLAYER,
-                       ..body::BodyConfig::default() }
-    );
-    player.borrow_mut().set_position(settings.get_vec3("player"));
-    player.borrow_mut().set_finite_rotation_mode(true);
+        let player = world.borrow_mut().add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?), 
+            eh_texture.clone(),
+                       Rc::new(body::BodyShape::Sphere{radius: 1.0}),
+                       body::BodyConfig{
+                           friction: 3.0,
+                           density: 0.1,
+                           restitution: 0.0,
+                           category_bits: body::BODY_CATEGORY_PLAYER_BIT,
+                           collide_bits: body::BODY_COLLIDE_PLAYER,
+                           ..body::BodyConfig::default() }
+        );
+        player.borrow_mut().set_position(settings.get_vec3("player"));
+        player.borrow_mut().set_finite_rotation_mode(true);
+        
+        if settings.get_u32("heightfield") == 1 {
+            world.borrow_mut().setup_dynamic_heightfield(); // do not move, this installs a self pointer to a C callback that shouldn't change
+        }
 
     let hm_tex = texture::load_texture(&display, "ground.png").chain_err(|| "failed to loda ground texture")?;
 
     let mut plane_verts = vec![];
-    for x in 0..world.heightfield_width - 1 {
-        for z in 0..world.heightfield_depth - 1 {
-            let hmp = (z * world.heightfield_width + x) as u32;
+    for x in 0..world.borrow().heightfield_width - 1 {
+        for z in 0..world.borrow().heightfield_depth - 1 {
+            let hmp = (z * world.borrow().heightfield_width + x) as u32;
 
-            let tx = x as f32 / world.heightfield_width as f32;
-            let tz = z as f32 / world.heightfield_depth as f32;
-            let ts = 1.0f32 / world.heightfield_depth as f32;
+            let tx = x as f32 / world.borrow().heightfield_width as f32;
+            let tz = z as f32 / world.borrow().heightfield_depth as f32;
+            let ts = 1.0f32 / world.borrow().heightfield_depth as f32;
 
-            let s = (1.0f32 / world.heightfield_depth as f32) * (MAP_SZ + 1.0);
-            let px = ((x as f32 / world.heightfield_width as f32)) * (MAP_SZ + 1.0) -
+            let s = (1.0f32 / world.borrow().heightfield_depth as f32) * (MAP_SZ + 1.0);
+            let px = ((x as f32 / world.borrow().heightfield_width as f32)) * (MAP_SZ + 1.0) -
                      (MAP_SZ / 2.0);
-            let pz = ((z as f32 / world.heightfield_depth as f32)) * (MAP_SZ + 1.0) -
+            let pz = ((z as f32 / world.borrow().heightfield_depth as f32)) * (MAP_SZ + 1.0) -
                      (MAP_SZ / 2.0);
 
-            let st = world.heightfield_width as u32;
+            let st = world.borrow().heightfield_width as u32;
 
             plane_verts.push(HmapVertex {
                 pos: [px, pz],
@@ -385,47 +389,75 @@ fn run() -> Result<()> {
     let mut hm_buf = glium::VertexBuffer::dynamic(&display, &plane_verts).chain_err(|| "failed to create hmap buffer")?;
     let hm_prog = glium::Program::from_source(&display, HMAP_VS, HMAP_FS, None).chain_err(|| "failed to create hmap program")?;
 
-    // let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
-    //    .chain_err(|| "failed to load level mesh for draw")?;
-    // let world_shape =
-    //    Rc::new(body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?);
+    if settings.get_u32("heightfield") == 0 {
+        let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
+           .chain_err(|| "failed to load level mesh for draw")?;
+        let world_shape =
+           Rc::new(body::BodyShape::from_obj("mappi.obj").chain_err(|| "failed to load level mesh for phys")?);
 
-    // let landscape = world.add_body(Rc::new(world_mesh),
-    // landscape_texture,
-    // world_shape,
-    // body::BodyConfig { fixed: true, ..Default::default() });
-    // landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
-    //
+        let landscape = world.borrow_mut().add_body(Rc::new(world_mesh),
+        landscape_texture,
+        world_shape,
+        body::BodyConfig { fixed: true, ..Default::default() });
+        landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
+    }
 
     for i in 0..10i32 {
-        let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
+        let ball = world.borrow_mut().add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
         eh_texture.clone(),
      Rc::new(body::BodyShape::Sphere{radius: 1.0}), body::BodyConfig::default());
         ball.borrow_mut().set_position(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
     }
 
-    let mut diamonds = Vec::new();
+    let diamonds = Rc::new(RefCell::new(Vec::new()));
     let diam_shape =
         Rc::new(body::BodyShape::from_obj("diamond.obj").chain_err(|| "failed to load diamond mesh for phys")?);
     let dstart = settings.get_vec3("diamondstart");
     let ddiff = settings.get_vec3("diamonddiff");
     for i in 0..settings.get_u32("diamondcount") {
-        let diamond = world.add_body(
+        let diamond = world.borrow_mut().add_body(
             Rc::new(mesh::Mesh::from_obj(&display, "diamond.obj").chain_err(|| "failed to load diamond mesh")?),
             diam_texture.clone(),
             diam_shape.clone(),
             body::BodyConfig { fixed: true, ..Default::default() });
         diamond.borrow_mut().set_position(dstart + i as f32 * ddiff);
-        diamonds.push(diamond);
+        diamonds.borrow_mut().push(diamond.borrow().id);
     }
     // TODO: diamond animation
+
+    let del_diamonds: Rc<RefCell<HashSet<u64>>> = Rc::new(RefCell::new(HashSet::new()));
+    {
+        let plr_id = player.borrow_mut().id;
+        let del_diamonds = del_diamonds.clone();
+        let diamonds = diamonds.clone();
+        let diamond_collision_handler =
+            move |o1: &mut Body, o2: &mut Body, _contact: &mut ode::dContact| {
+                if o1.id == plr_id || o2.id == plr_id {
+                    let (_player, diamond) = if o1.id == plr_id {
+                        (o1, o2)
+                    } else {
+                        (o2, o1)
+                    };
+                    if diamonds.borrow().contains(&diamond.id) {
+                        del_diamonds.borrow_mut().insert(diamond.id);
+                        // don't cause physical collision
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            };
+        world.borrow_mut().add_contact_handler(Box::new(diamond_collision_handler));
+    }
 
     let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj")
         .chain_err(|| "failed to load spinthing mesh for draw")?;
     let spin_shape =
         Rc::new(body::BodyShape::from_obj("spinthing.obj").chain_err(|| "failed to load spinthing mesh for phys")?);
 
-    let spinthing = world.add_body(Rc::new(spin_mesh),
+    let spinthing = world.borrow_mut().add_body(Rc::new(spin_mesh),
                                    spin_texture.clone(),
                                    spin_shape,
                                    body::BodyConfig {
@@ -436,7 +468,7 @@ fn run() -> Result<()> {
     spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
 
     // this spins around y axis, i.e., on the ground
-    let mut testgear = Gear::new(world.ode_world(), spinthing.clone(), dJointTypeHinge);
+    let mut testgear = Gear::new(world.borrow_mut().ode_world(), spinthing.clone(), dJointTypeHinge);
     testgear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
     testgear.set_hinge_param(dParamFMax, 1000.0);
     testgear.set_hinge_param(dParamVel, 1.0);
@@ -447,7 +479,7 @@ fn run() -> Result<()> {
         Rc::new(body::BodyShape::from_obj("gear.obj").chain_err(|| "failed to load gear mesh for phys")?);
 
 
-    let body = world.add_body(Rc::new(mesh),
+    let body = world.borrow_mut().add_body(Rc::new(mesh),
                               spin_texture.clone(),
                               shape,
                               body::BodyConfig {
@@ -458,7 +490,7 @@ fn run() -> Result<()> {
 
     body.borrow_mut().set_position(settings.get_vec3("liftgear"));
     // this spins around x axis, i.e., lifts things up
-    let mut liftgear = Gear::new(world.ode_world(), body.clone(), dJointTypeHinge);
+    let mut liftgear = Gear::new(world.borrow_mut().ode_world(), body.clone(), dJointTypeHinge);
     liftgear.set_hinge_axis(Vec3::new(1.0, 0.0, 0.0));
     liftgear.set_hinge_param(dParamFMax, 1000.0);
     liftgear.set_hinge_param(dParamVel, -1.0);
@@ -489,22 +521,28 @@ fn run() -> Result<()> {
         let plr_id = player.borrow_mut().id;
         let mixer = mixer.clone();
         let hit_sound = hit_sound.clone();
-        let handler = move |o1: &mut Body, o2: &mut Body, contact: &mut ode::dContact| {
-            if o1.id == plr_id || o2.id == plr_id {
-                let vel1 = o1.get_linear_velocity();
-                let vel2 = o2.get_linear_velocity();
-                let delta_vel = vel1 - vel2;
-                let normal = Vec3::new(contact.geom.normal[0] as f32,
-                                       contact.geom.normal[1] as f32,
-                                       contact.geom.normal[2] as f32);
-                let coincide_vel = na::dot(&normal, &delta_vel).abs();
-                if coincide_vel > 4.0 {
-                    // bleh, can't ".chain_err(foo)?" this result in a handler
-                    mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
+        let diamonds = diamonds.clone();
+        let landscape_sound_handler =
+            move |o1: &mut Body, o2: &mut Body, contact: &mut ode::dContact| {
+                // diamonds don't cause a sound here
+                if !diamonds.borrow().contains(&o1.id) && !diamonds.borrow().contains(&o2.id) {
+                    if o1.id == plr_id || o2.id == plr_id {
+                        let vel1 = o1.get_linear_velocity();
+                        let vel2 = o2.get_linear_velocity();
+                        let delta_vel = vel1 - vel2;
+                        let normal = Vec3::new(contact.geom.normal[0] as f32,
+                                               contact.geom.normal[1] as f32,
+                                               contact.geom.normal[2] as f32);
+                        let coincide_vel = na::dot(&normal, &delta_vel).abs();
+                        if coincide_vel > 4.0 {
+                            // bleh, can't ".chain_err(foo)?" this result in a handler
+                            mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
+                        }
+                    }
                 }
-            }
-        };
-        world.add_contact_handler(Box::new(handler));
+                false
+            };
+        world.borrow_mut().add_contact_handler(Box::new(landscape_sound_handler));
     }
 
     let mut allow_jump = true;
@@ -594,8 +632,15 @@ fn run() -> Result<()> {
         }
 
         // Step the world
-        world.step(dt);
+        world.borrow_mut().step(dt, settings.get_u32("heightfield") == 1);
         particles.step(dt);
+        for &body_id in del_diamonds.borrow().iter() {
+            world.borrow_mut().del_body(body_id);
+            let idx = diamonds.borrow().iter().position(|&x| x == body_id).unwrap();
+            diamonds.borrow_mut().remove(idx);
+            // XXX or retain
+        }
+        del_diamonds.borrow_mut().clear();
 
         let mut target = display.draw();
 
@@ -627,7 +672,7 @@ fn run() -> Result<()> {
                                  cam_to_ball.x as f64,
                                  cam_to_ball.y as f64,
                                  cam_to_ball.z as f64);
-                let found = ode::dCollide(ray, world.ode_space() as ode::dGeomID, maxhits as i32,
+                let found = ode::dCollide(ray, world.borrow_mut().ode_space() as ode::dGeomID, maxhits as i32,
                                           contacts.as_mut_ptr(),
                                           std::mem::size_of::<ode::dContactGeom>() as i32) as usize;
                 contacts.set_len(found);
@@ -681,31 +726,34 @@ fn run() -> Result<()> {
                   false,
                   false)
             .chain_err(|| "failed to draw cubemap")?;
-
-        {
+            
+        if settings.get_u32("heightfield") == 1 {
             for v in hm_buf.map().iter_mut() {
-                v.h = world.heightfield[v.hmp as usize];
+                v.h = world.borrow().heightfield[v.hmp as usize];
             }
         }
 
         let player_pos = player.borrow_mut().get_position();
         {
-            use glium::draw_parameters::{DepthTest, BackfaceCullingMode};
+            use glium::draw_parameters::DepthTest;
             let mut params: glium::draw_parameters::DrawParameters = Default::default();
             params.depth = glium::Depth {
                 test: DepthTest::IfLess,
                 write: true,
                 ..Default::default()
             };
+            if settings.get_u32("heightfield") == 1 {
             target.draw(&hm_buf,
                       &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
                       &hm_prog,
                       &uniform! { perspective: *projection.as_ref(), modelview: *cam_view.as_ref(),
                             player_pos: *player_pos.as_ref(), texs: &hm_tex },
-                      &params);
+                        &params)
+                .chain_err(|| "failed to draw cyndis on hönö")?;
+            }
         }
 
-        for body in world.bodies() {
+        for body in world.borrow().bodies() {
             let model = body.borrow_mut().get_posrot_homogeneous();
             let modelview = cam_view * model;
 
