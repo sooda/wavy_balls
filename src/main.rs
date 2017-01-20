@@ -66,7 +66,7 @@ use inotify::INotify;
 use inotify::ffi::*;
 
 use math::*;
-use audio::{AudioMixer, JumpSound, HitSound};
+use audio::{AudioMixer, JumpSound, HitSound, DiamondSound};
 use body::Body;
 use gear::{Gear, dJointTypeHinge, dParamFMax, dParamVel};
 use settings::Settings;
@@ -426,29 +426,6 @@ fn run() -> Result<()> {
     }
     // TODO: diamond animation
 
-    let del_diamonds: Rc<RefCell<HashSet<u64>>> = Rc::new(RefCell::new(HashSet::new()));
-    {
-        let plr_id = player.borrow_mut().id;
-        let del_diamonds = del_diamonds.clone();
-        let diamonds = diamonds.clone();
-        let diamond_collision_handler =
-            move |o1: &mut Body, o2: &mut Body, _contact: &mut ode::dContact| {
-                if o1.id == plr_id || o2.id == plr_id {
-                    let (_player, diamond) = if o1.id == plr_id { (o1, o2) } else { (o2, o1) };
-                    if diamonds.borrow().contains(&diamond.id) {
-                        del_diamonds.borrow_mut().insert(diamond.id);
-                        // don't cause physical collision
-                        true
-                    } else {
-                        false
-                    }
-                } else {
-                    false
-                }
-            };
-        world.borrow_mut().add_contact_handler(Box::new(diamond_collision_handler));
-    }
-
     let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj")
         .chain_err(|| "failed to load spinthing mesh for draw")?;
     let spin_shape =
@@ -518,6 +495,7 @@ fn run() -> Result<()> {
         .chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
+    let diamond_sound = Rc::new(DiamondSound::new().chain_err(|| "failed to load diamond sound")?);
     {
         let plr_id = player.borrow_mut().id;
         let mixer = mixer.clone();
@@ -545,6 +523,32 @@ fn run() -> Result<()> {
             };
         world.borrow_mut().add_contact_handler(Box::new(landscape_sound_handler));
     }
+    let del_diamonds: Rc<RefCell<HashSet<u64>>> = Rc::new(RefCell::new(HashSet::new()));
+    {
+        let plr_id = player.borrow_mut().id;
+        let del_diamonds = del_diamonds.clone();
+        let diamonds = diamonds.clone();
+        let mixer = mixer.clone();
+        let diamond_sound = diamond_sound.clone();
+        let diamond_collision_handler =
+            move |o1: &mut Body, o2: &mut Body, _contact: &mut ode::dContact| {
+                if o1.id == plr_id || o2.id == plr_id {
+                    let (_player, diamond) = if o1.id == plr_id { (o1, o2) } else { (o2, o1) };
+                    if diamonds.borrow().contains(&diamond.id) {
+                        del_diamonds.borrow_mut().insert(diamond.id);
+                        mixer.play(&*diamond_sound, ()).expect("failed to play diamond sound");
+                        // don't cause physical collision
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            };
+        world.borrow_mut().add_contact_handler(Box::new(diamond_collision_handler));
+    }
+
 
     let mut allow_jump = true;
 

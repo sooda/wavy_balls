@@ -141,12 +141,10 @@ impl Sound<VolumeEffect> for JumpSound {
     }
 }
 
-#[allow(dead_code)]
 pub struct HitSound {
     clip: SoundClip,
 }
 
-#[allow(dead_code)]
 impl HitSound {
     pub fn new() -> Result<Self> {
         Ok(HitSound { clip: SoundClip::new("114181__edgardedition__thud11.wav")? })
@@ -154,6 +152,26 @@ impl HitSound {
 }
 
 impl Sound<NoEffect> for HitSound {
+    type PlayArgs = ();
+
+    fn play(&self, _args: ()) -> AudioTape<NoEffect> {
+        AudioTape {
+            clip: &self.clip,
+            filter: NoEffect {},
+        }
+    }
+}
+pub struct DiamondSound {
+    clip: SoundClip,
+}
+
+impl DiamondSound {
+    pub fn new() -> Result<Self> {
+        Ok(DiamondSound { clip: SoundClip::new("181321__ojirio__snare.wav")? })
+    }
+}
+
+impl Sound<NoEffect> for DiamondSound {
     type PlayArgs = ();
 
     fn play(&self, _args: ()) -> AudioTape<NoEffect> {
