@@ -13,7 +13,7 @@ path = "src/worldgen.rs"
 
 [dependencies]
 glium_sdl2 = "0.13"
-glium = "0.15"
+glium = "0.15.0"
 nalgebra = "0.9"
 image = "0.11"
 error-chain = "0.7"
@@ -21,6 +21,7 @@ ncollide = "0.10.*"
 nphysics3d = "0.5.*"
 inotify = "0.3.0"
 rand = "0.3"
+nanovg = { git = "git://github.com/cyndis/nanovg-rs.git", features = ["gl3"] }
 
 [dependencies.sdl2]
 version = "0.27.3"
@@ -29,3 +30,4 @@ features = ["mixer"]
 
 [replace]
 "sdl2:0.27.3" = { git = "https://github.com/sooda/rust-sdl2", branch = "mixregistereffect" }
+"glium:0.15.0" = { git = "git://github.com/cyndis/glium" }

@@ -18,6 +18,8 @@ extern crate inotify;
 
 extern crate rand;
 
+extern crate nanovg;
+
 #[link(name = "ode")]
 extern "C" {}
 
@@ -189,6 +191,9 @@ fn run() -> Result<()> {
     let display = sdl_video.window("FGJ", display_width, display_height)
         .build_glium()
         .chain_err(|| "failed to initialize glium context")?;
+        
+    let nanovg = nanovg::Context::create_gl3(nanovg::ANTIALIAS | nanovg::STENCIL_STROKES);
+    let _nanovg_font = nanovg.create_font("main", "liberationsans.ttf").unwrap();
 
     let mut event_pump =
         sdl_ctx.event_pump().map_err(sdl_err).chain_err(|| "failed to initialize SDL event pump")?;
@@ -579,6 +584,30 @@ fn run() -> Result<()> {
             .chain_err(|| "failed to render particles")?;
 
         render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
+
+        nanovg.begin_frame(800, 600, 1.0);
+        nanovg.begin_path();
+        nanovg.move_to(10.0, 10.0);
+        nanovg.line_to(10.0, 100.0);
+        nanovg.line_to(175.0, 100.0);
+        nanovg.line_to(175.0, 10.0);
+        nanovg.fill_color(nanovg::Color::rgba(0,0,0,128));
+        nanovg.fill();
+
+        nanovg.font_size(32.0);
+        nanovg.font_face("main");
+        nanovg.stroke_color(nanovg::Color::rgba(255,255,255,255));
+        nanovg.fill_color(nanovg::Color::rgba(255,255,255,255));
+        nanovg.text(20.0, 90.0, &format!("fgj17"));
+
+        nanovg.end_frame();
+
+        {
+            use glium::backend::Facade;
+            let gctx = display.get_context();
+            let mut state = gctx.get_state().borrow_mut();
+            *state = Default::default();
+        }
 
         target.finish().chain_err(|| "failed to finish frame")?;
 
