@@ -101,9 +101,9 @@ pub struct World {
     contact_handlers: Vec<ContactHandlerT>,
     body_id_counter: u64,
 
-    heightfield: Vec<f32>,
-    heightfield_width: i32,
-    heightfield_depth: i32,
+    pub heightfield: Vec<f32>,
+    pub heightfield_width: i32,
+    pub heightfield_depth: i32,
 }
 impl World {
     pub fn new() -> World {

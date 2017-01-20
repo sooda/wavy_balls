@@ -1,4 +1,4 @@
-#![deny(warnings)]
+// #![deny(warnings)]
 
 #[macro_use]
 extern crate glium;
@@ -66,6 +66,14 @@ use body::Body;
 use gear::{Gear, dJointTypeHinge, dParamFMax, dParamVel};
 use settings::Settings;
 
+#[derive(Copy, Clone)]
+struct HmapVertex {
+    pos: [f32; 2],
+    h: f32,
+    hmp: u32,
+}
+implement_vertex!(HmapVertex, pos, h);
+
 static VERTEX_SHADER: &'static str = r#"
     #version 140
 
@@ -101,6 +109,39 @@ static FRAGMENT_SHADER: &'static str = r#"
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color.rgb = color.rgb * 0.4;
         gl_FragColor = color;
+    }
+"#;
+
+static HMAP_VS: &'static str = r#"
+    #version 140
+
+    uniform mat4 perspective;
+    uniform mat4 modelview;
+
+    in vec2 pos;
+    in float h;
+    
+    out vec3 f_position;
+
+    void main() {
+        gl_Position = perspective * modelview * vec4(pos.x, h, pos.y, 1.0);
+        f_position = vec3(pos.x, h, pos.y);
+    }
+"#;
+
+static HMAP_FS: &'static str = r#"
+    #version 140
+    
+    uniform vec3 player_pos;
+    
+    in vec3 f_position;
+
+    void main() {
+        vec3 color = vec3(1.0, 0.5, 0.5);
+        if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
+            color *= 0.4;
+        color *= fract(f_position.y);
+        gl_FragColor = vec4(color, 1.0);
     }
 "#;
 
@@ -273,6 +314,30 @@ fn run() -> Result<()> {
     );
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
+    
+    let mut plane_verts = vec![];
+    for x in 0..world.heightfield_width-1 {
+        for z in 0..world.heightfield_depth-1 {
+            let hmp =( z * world.heightfield_width + x) as u32;
+            
+            let s = (1.0f32 / world.heightfield_depth as f32) * 51.0;
+            let px = ((x as f32 / world.heightfield_width as f32)) * 51.0 - 25.0;
+            let pz = ((z as f32 / world.heightfield_depth as f32)) * 51.0 - 25.0;
+            
+            let st = world.heightfield_width as u32;
+            
+            plane_verts.push(HmapVertex { pos: [px  , pz  ], h: 0.0, hmp: hmp });
+            plane_verts.push(HmapVertex { pos: [px+s, pz  ], h: 0.0, hmp: hmp+1 });
+            plane_verts.push(HmapVertex { pos: [px  , pz+s], h: 0.0, hmp: hmp+st });
+            
+            plane_verts.push(HmapVertex { pos: [px+s, pz  ], h: 0.0, hmp: hmp+1 });
+            plane_verts.push(HmapVertex { pos: [px+s, pz+s], h: 0.0, hmp: hmp+1+st });
+            plane_verts.push(HmapVertex { pos: [px  , pz+s], h: 0.0, hmp: hmp+st });
+        }
+    }
+    
+    let mut hm_buf = glium::VertexBuffer::dynamic(&display, &plane_verts).chain_err(|| "failed to create hmap buffer")?;
+    let hm_prog = glium::Program::from_source(&display, HMAP_VS, HMAP_FS, None).chain_err(|| "failed to create hmap program")?;
 
     // let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
     //    .chain_err(|| "failed to load level mesh for draw")?;
@@ -285,6 +350,7 @@ fn run() -> Result<()> {
     // body::BodyConfig { fixed: true, ..Default::default() });
     // landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
     //
+
     for i in 0..10i32 {
         let ball = world.add_body(Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj").chain_err(|| "failed to load ball mesh")?),
         eh_texture.clone(),
@@ -569,8 +635,30 @@ fn run() -> Result<()> {
                   false,
                   false)
             .chain_err(|| "failed to draw cubemap")?;
-
+            
+        {
+            for v in hm_buf.map().iter_mut() {
+                v.h = world.heightfield[v.hmp as usize];
+            }
+        }
+            
         let player_pos = player.borrow_mut().get_position();
+        {
+            use glium::draw_parameters::{DepthTest, BackfaceCullingMode};
+            let mut params: glium::draw_parameters::DrawParameters = Default::default();
+            params.depth = glium::Depth {
+                test: DepthTest::IfLess,
+                write: true,
+                ..Default::default()
+            };
+            target.draw(&hm_buf,
+                        &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
+                        &hm_prog,
+                        &uniform! { perspective: *projection.as_ref(), modelview: *cam_view.as_ref(),
+                            player_pos: *player_pos.as_ref() },
+                        &params);
+        }
+
         for body in world.bodies() {
             let model = body.borrow_mut().get_posrot_homogeneous();
             let modelview = cam_view * model;
