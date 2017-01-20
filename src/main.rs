@@ -259,7 +259,9 @@ fn run() -> Result<()> {
                    body::BodyConfig{
                        friction: 3.0,
                        density: 0.1,
-                        restitution: 0.0,
+                       restitution: 0.0,
+                       category_bits: body::BODY_CATEGORY_PLAYER_BIT,
+                       collide_bits: body::BODY_COLLIDE_PLAYER,
                        ..body::BodyConfig::default() }
     );
     player.borrow_mut().set_position(settings.get_vec3("player"));
@@ -291,7 +293,11 @@ fn run() -> Result<()> {
     let spinthing = world.add_body(Rc::new(spin_mesh),
                                    spin_texture.clone(),
                                    spin_shape,
-                                   body::BodyConfig { ..Default::default() });
+                                   body::BodyConfig {
+                                       category_bits: body::BODY_CATEGORY_GEAR_BIT,
+                                       collide_bits: body::BODY_COLLIDE_GEAR,
+                                       ..Default::default()
+                                   });
     spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
 
     // this spins around y axis, i.e., on the ground
@@ -309,7 +315,11 @@ fn run() -> Result<()> {
     let body = world.add_body(Rc::new(mesh),
                               spin_texture.clone(),
                               shape,
-                              body::BodyConfig { ..Default::default() });
+                              body::BodyConfig {
+                                  category_bits: body::BODY_CATEGORY_GEAR_BIT,
+                                  collide_bits: body::BODY_COLLIDE_GEAR,
+                                  ..Default::default()
+                              });
 
     body.borrow_mut().set_position(settings.get_vec3("liftgear"));
     // this spins around x axis, i.e., lifts things up
@@ -447,9 +457,6 @@ fn run() -> Result<()> {
                 texture: 0,
             });
         }
-
-        spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
-        liftgear.body.borrow_mut().set_position(settings.get_vec3("liftgear"));
 
         // Step the world
         world.step(dt);

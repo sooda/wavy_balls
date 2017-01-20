@@ -171,6 +171,9 @@ impl World {
                 ode::dBodySetMass(ode_body, &mass);
             }
             ode::dGeomSetBody(ode_geom, ode_body);
+
+            ode::dGeomSetCategoryBits(ode_geom, config.category_bits);
+            ode::dGeomSetCollideBits(ode_geom, config.collide_bits);
         };
 
         let body = Rc::new(RefCell::new(Body {

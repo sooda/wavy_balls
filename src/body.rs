@@ -46,7 +46,21 @@ pub struct BodyConfig {
     pub friction: f32,
     pub restitution: f32,
     pub density: f32,
+    pub category_bits: u64,
+    pub collide_bits: u64,
 }
+
+// individual bits for where object belongs to
+pub const BODY_CATEGORY_PLAYER_BIT: u64 = 1 << 0;
+pub const BODY_CATEGORY_WORLD_BIT: u64 = 1 << 1;
+pub const BODY_CATEGORY_GEAR_BIT: u64 = 1 << 2;
+
+pub const BODY_CATEGORY_ALL_BIT: u64 = 0xffffffff;
+
+// per-type bitmasks about which other categories the particular category can collide with
+pub const BODY_COLLIDE_PLAYER: u64 = BODY_CATEGORY_ALL_BIT;
+pub const BODY_COLLIDE_WORLD: u64 = BODY_CATEGORY_ALL_BIT & !BODY_CATEGORY_GEAR_BIT;
+pub const BODY_COLLIDE_GEAR: u64 = BODY_CATEGORY_PLAYER_BIT;
 
 impl Default for BodyConfig {
     fn default() -> Self {
@@ -55,6 +69,8 @@ impl Default for BodyConfig {
             friction: 0.9,
             restitution: 0.0,
             density: 1.0,
+            category_bits: BODY_CATEGORY_WORLD_BIT,
+            collide_bits: BODY_COLLIDE_WORLD,
         }
     }
 }
