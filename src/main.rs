@@ -72,10 +72,11 @@ use settings::Settings;
 #[derive(Copy, Clone)]
 struct HmapVertex {
     pos: [f32; 2],
+    tex: [f32; 2],
     h: f32,
     hmp: u32,
 }
-implement_vertex!(HmapVertex, pos, h);
+implement_vertex!(HmapVertex, pos, tex, h);
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -122,13 +123,16 @@ static HMAP_VS: &'static str = r#"
     uniform mat4 modelview;
 
     in vec2 pos;
+    in vec2 tex;
     in float h;
     
     out vec3 f_position;
+    out vec2 f_tex;
 
     void main() {
         gl_Position = perspective * modelview * vec4(pos.x, h, pos.y, 1.0);
         f_position = vec3(pos.x, h, pos.y);
+        f_tex = tex;
     }
 "#;
 
@@ -136,14 +140,15 @@ static HMAP_FS: &'static str = r#"
     #version 140
     
     uniform vec3 player_pos;
+    uniform sampler2D texs;
     
     in vec3 f_position;
+    in vec2 f_tex;
 
     void main() {
-        vec3 color = vec3(1.0, 0.5, 0.5);
+        vec3 color = texture(texs, f_tex).rgb;
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color *= 0.4;
-        color *= fract(f_position.y);
         gl_FragColor = vec4(color, 1.0);
     }
 "#;
@@ -318,10 +323,16 @@ fn run() -> Result<()> {
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
     
+    let hm_tex = texture::load_texture(&display, "ground.png").chain_err(|| "failed to loda ground texture")?;
+    
     let mut plane_verts = vec![];
     for x in 0..world.heightfield_width-1 {
         for z in 0..world.heightfield_depth-1 {
             let hmp =( z * world.heightfield_width + x) as u32;
+            
+            let tx = x as f32 / world.heightfield_width as f32;
+            let tz = z as f32 / world.heightfield_depth as f32;
+            let ts = 1.0f32 / world.heightfield_depth as f32;
             
             let s = (1.0f32 / world.heightfield_depth as f32) * (MAP_SZ + 1.0);
             let px = ((x as f32 / world.heightfield_width as f32)) * (MAP_SZ + 1.0) - (MAP_SZ / 2.0);
@@ -329,13 +340,13 @@ fn run() -> Result<()> {
             
             let st = world.heightfield_width as u32;
             
-            plane_verts.push(HmapVertex { pos: [px  , pz  ], h: 0.0, hmp: hmp });
-            plane_verts.push(HmapVertex { pos: [px+s, pz  ], h: 0.0, hmp: hmp+1 });
-            plane_verts.push(HmapVertex { pos: [px  , pz+s], h: 0.0, hmp: hmp+st });
+            plane_verts.push(HmapVertex { pos: [px  , pz  ], tex: [tx   , tz   ], h: 0.0, hmp: hmp });
+            plane_verts.push(HmapVertex { pos: [px+s, pz  ], tex: [tx+ts, tz   ], h: 0.0, hmp: hmp+1 });
+            plane_verts.push(HmapVertex { pos: [px  , pz+s], tex: [tx   , tz+ts], h: 0.0, hmp: hmp+st });
             
-            plane_verts.push(HmapVertex { pos: [px+s, pz  ], h: 0.0, hmp: hmp+1 });
-            plane_verts.push(HmapVertex { pos: [px+s, pz+s], h: 0.0, hmp: hmp+1+st });
-            plane_verts.push(HmapVertex { pos: [px  , pz+s], h: 0.0, hmp: hmp+st });
+            plane_verts.push(HmapVertex { pos: [px+s, pz  ], tex: [tx+ts, tz   ], h: 0.0, hmp: hmp+1 });
+            plane_verts.push(HmapVertex { pos: [px+s, pz+s], tex: [tx+ts, tz+ts], h: 0.0, hmp: hmp+1+st });
+            plane_verts.push(HmapVertex { pos: [px  , pz+s], tex: [tx   , tz+ts], h: 0.0, hmp: hmp+st });
         }
     }
     
@@ -658,7 +669,7 @@ fn run() -> Result<()> {
                         &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
                         &hm_prog,
                         &uniform! { perspective: *projection.as_ref(), modelview: *cam_view.as_ref(),
-                            player_pos: *player_pos.as_ref() },
+                            player_pos: *player_pos.as_ref(), texs: &hm_tex },
                         &params);
         }
 
