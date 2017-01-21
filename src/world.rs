@@ -148,7 +148,7 @@ impl World {
             heightfield: Vec::new(),
             heightfield_user: Vec::new(),
             heightfield_resolution: (0, 0),
-            heightfield_scale: 1.0,
+            heightfield_scale: 0.5,
         }
     }
 
