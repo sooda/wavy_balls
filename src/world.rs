@@ -1,4 +1,4 @@
-use body::{Body, BodyShape, BodyConfig, BODY_CATEGORY_WORLD_BIT, BODY_COLLIDE_WORLD};
+use body::{Body, BodyShape, BodyConfig, BODY_CATEGORY_TERRAIN_BIT, BODY_COLLIDE_TERRAIN};
 use ode;
 use std;
 use math::*;
@@ -282,8 +282,8 @@ impl World {
             // ode::dGeomSetBody(geom, std::ptr::null_mut());
             ode::dGeomSetPosition(geom, 0.0, 0.0, 0.0);
             ode::dBodySetPosition(ode_body, 0.0, 0.0, 0.0);
-            ode::dGeomSetCategoryBits(geom, BODY_CATEGORY_WORLD_BIT);
-            ode::dGeomSetCollideBits(geom, BODY_COLLIDE_WORLD);
+            ode::dGeomSetCategoryBits(geom, BODY_CATEGORY_TERRAIN_BIT);
+            ode::dGeomSetCollideBits(geom, BODY_COLLIDE_TERRAIN);
 
             let body = Rc::new(RefCell::new(Body {
                 mesh: None,
