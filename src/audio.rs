@@ -4,7 +4,7 @@ use std;
 
 use sdl2::mixer::{init, INIT_OGG, Sdl2MixerContext, open_audio, AUDIO_S16LSB, allocate_channels,
                   Chunk, Channel, EffectCallback, Music, MAX_VOLUME};
-use ::sdl_err;
+use sdl_err;
 
 use errors::*;
 
@@ -101,8 +101,7 @@ impl<'a> AudioMixer<'a> {
     }
 }
 
-struct NoEffect {
-}
+struct NoEffect {}
 
 impl StereoFilter for NoEffect {
     // would specialize play() above if could. oh well, just do nothin'

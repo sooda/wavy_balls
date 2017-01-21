@@ -519,8 +519,9 @@ fn run() -> Result<()> {
     let cube = mesh::Mesh::for_cubemap(&display).unwrap();
 
     let mut particles = particle::Particles::new(
-        &display, vec![texture::load_image("starAlpha.png")?], 100)
+        &display, vec![texture::load_image("Smoke10.png")?], 100)
                     .chain_err(|| "failed to initialize particle engine")?;
+    let new_particles = Rc::new(RefCell::new(vec![]));
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
@@ -542,30 +543,45 @@ fn run() -> Result<()> {
         let mixer = mixer.clone();
         let hit_sound = hit_sound.clone();
         let diamonds = diamonds.clone();
+        let new_particles = new_particles.clone();
         let vol_scale = settings.get_f32("volume_scale");
-        let landscape_sound_handler =
-            move |o1: &mut Body, o2: &mut Body, contact: &mut ode::dContact| {
-                // diamonds don't cause a sound here
-                if !diamonds.borrow().contains(&o1.id) && !diamonds.borrow().contains(&o2.id) {
-                    if o1.id == plr_id || o2.id == plr_id {
-                        let vel1 = o1.get_linear_velocity();
-                        let vel2 = o2.get_linear_velocity();
-                        let delta_vel = vel1 - vel2;
-                        let normal = Vec3::new(contact.geom.normal[0] as f32,
-                                               contact.geom.normal[1] as f32,
-                                               contact.geom.normal[2] as f32);
-                        let coincide_vel = na::dot(&normal, &delta_vel).abs();
-                        let volume = (vol_scale * coincide_vel * coincide_vel).min(1.0);
-                        // TODO: multiple different sounds for even more dramatic collisions
-                        if volume > 0.01 {
-                            println!("vol {}", vol_scale * coincide_vel * coincide_vel);
-                            // bleh, can't ".chain_err(foo)?" this result in a handler
-                            mixer.play(&*hit_sound, (volume,)).expect("failed to play hit sound");
+        let landscape_sound_handler = move |o1: &mut Body,
+                                            o2: &mut Body,
+                                            contact: &mut ode::dContact| {
+            // diamonds don't cause a sound here
+            if !diamonds.borrow().contains(&o1.id) && !diamonds.borrow().contains(&o2.id) {
+                if o1.id == plr_id || o2.id == plr_id {
+                    let vel1 = o1.get_linear_velocity();
+                    let vel2 = o2.get_linear_velocity();
+                    let delta_vel = vel1 - vel2;
+                    let normal = Vec3::new(contact.geom.normal[0] as f32,
+                                           contact.geom.normal[1] as f32,
+                                           contact.geom.normal[2] as f32);
+                    let coincide_vel = na::dot(&normal, &delta_vel).abs();
+                    let volume = (vol_scale * coincide_vel * coincide_vel).min(1.0);
+                    // TODO: multiple different sounds for even more dramatic collisions
+                    if volume > 0.01 {
+                        println!("vol {}", vol_scale * coincide_vel * coincide_vel);
+                        // bleh, can't ".chain_err(foo)?" this result in a handler
+                        mixer.play(&*hit_sound, (volume,)).expect("failed to play hit sound");
+
+                        for a in 0..10 {
+                            let angle = (a as f32 / 10.0) * 2.0 * 3.1416;
+                            let part = particle::Particle {
+                                position: o1.get_position().to_point() + Vec3::new(0.0, -1.0, 0.0),
+                                scale: Vec2::new(volume, volume) * 2.5,
+                                velocity: Vec3::new(angle.cos() * 3.0, 0.2, angle.sin() * 3.0),
+                                lifetime: Some(0.75),
+                                texture: 0,
+                                ..Default::default()
+                            };
+                            new_particles.borrow_mut().push(part);
                         }
                     }
                 }
-                false
-            };
+            }
+            false
+        };
         world.borrow_mut().add_contact_handler(Box::new(landscape_sound_handler));
     }
     let del_diamonds: Rc<RefCell<HashSet<u64>>> = Rc::new(RefCell::new(HashSet::new()));
@@ -683,6 +699,13 @@ fn run() -> Result<()> {
             });
         }
 
+        {
+            let mut pp = new_particles.borrow_mut();
+            for part in pp.drain(..) {
+                particles.add(part);
+            }
+        }
+
         // Step the world
         let player_position = player.borrow_mut().get_position();
         world.borrow_mut().step(dt,
@@ -738,8 +761,8 @@ fn run() -> Result<()> {
                                           world.borrow_mut().ode_space() as ode::dGeomID,
                                           maxhits as i32,
                                           contacts.as_mut_ptr(),
-                                          std::mem::size_of::<ode::dContactGeom>() as i32
-                                         ) as usize;
+                                          std::mem::size_of::<ode::dContactGeom>() as i32) as
+                            usize;
                 contacts.set_len(found);
                 ode::dGeomDestroy(ray);
             }

@@ -191,14 +191,20 @@ impl Particles {
         for particle in &mut self.particles {
             particle.position = particle.position + particle.velocity * dt;
             particle.alive += dt;
+
+            let life_prc = if let Some(lt) = particle.lifetime {
+                1.0 - particle.alive / lt
+            } else {
+                1.0
+            };
+
+            particle.color.w = life_prc;
         }
 
-        self.particles.retain(|particle| {
-            if let Some(lifetime) = particle.lifetime {
-                particle.alive <= lifetime
-            } else {
-                true
-            }
+        self.particles.retain(|particle| if let Some(lifetime) = particle.lifetime {
+            particle.alive <= lifetime
+        } else {
+            true
         });
 
         let mut m = self.buffer.map();

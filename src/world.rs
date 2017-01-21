@@ -178,12 +178,12 @@ impl World {
                     let trimesh_data = ode::dGeomTriMeshDataCreate();
 
                     ode::dGeomTriMeshDataBuildDouble(trimesh_data,
-                                                     vertices.as_ptr()
-                                                        as *const std::os::raw::c_void,
+                                                     vertices.as_ptr() as
+                                                     *const std::os::raw::c_void,
                                                      8 * 3, // vertex stride
                                                      vertices.len() as i32 / 3,
-                                                     indices.as_ptr()
-                                                        as *const std::os::raw::c_void,
+                                                     indices.as_ptr() as
+                                                     *const std::os::raw::c_void,
                                                      indices.len() as i32,
                                                      4 * 3);
 
