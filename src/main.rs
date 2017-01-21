@@ -772,14 +772,12 @@ fn run() -> Result<()> {
             // let body::Body { ref mesh, ref texture, .. } = *body.borrow_mut();
             let b = body.borrow_mut();
             // i have no idea what i'm doing. this can't be right. thanks, compiler
-            let ref mesh = b.mesh;
-            let ref texture = b.texture;
-            if let (&Some(ref mesh), &Some(ref texture)) = (mesh, texture) {
+            if let (&Some(ref mesh), &Some(ref texture)) = (&b.mesh, &b.texture) {
 
 
-                let ref texture = *texture;
+                let ref texture = **texture;
 
-                let prog = match **texture {
+                let prog = match *texture {
                     texture::Texture::Twod(_) => &program,
                     texture::Texture::Array(_) => &program_array,
                 };
@@ -789,7 +787,7 @@ fn run() -> Result<()> {
                       &uniform! {
                       perspective: *projection.as_ref(),
                       modelview: *modelview.as_ref(),
-                      tex: &**texture,
+                      tex: &*texture,
                       player_pos: *player_pos.as_ref(),
                   },
                       prog,
