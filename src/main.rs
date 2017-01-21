@@ -313,26 +313,10 @@ fn run() -> Result<()> {
     let diam_shape = Rc::new(
         body::BodyShape::from_obj("diamond.obj")
         .chain_err(|| "failed to load diamond mesh for phys")?);
-    let dstart = settings.get_vec3("diamondstart");
-    let ddiff = settings.get_vec3("diamonddiff");
+    let diam_mesh = Rc::new(
+        RefCell::new(mesh::Mesh::from_obj(&display, "diamond.obj", false)
+                     .chain_err(|| "failed to load diamond mesh")?));
     let mut diamgears = Vec::new();
-    for i in 0..settings.get_u32("diamondcount") {
-        let diamond = world.borrow_mut().add_body(
-            Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "diamond.obj", false)
-                                 .chain_err(|| "failed to load diamond mesh")?)),
-                                 diam_texture.clone(),
-                                 diam_shape.clone(),
-                                 body::BodyConfig { collide_sound: Some(0), ..Default::default() });
-        diamond.borrow_mut().set_position(dstart + i as f32 * ddiff);
-        diamonds.borrow_mut().push(diamond.borrow().id);
-        let mut gear = Gear::new(world.borrow_mut().ode_world(),
-                                 diamond.clone(),
-                                 dJointTypeHinge);
-        gear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
-        gear.set_hinge_param(dParamFMax, 1000.0);
-        gear.set_hinge_param(dParamVel, 1.0);
-        diamgears.push(gear);
-    }
     {
         let (width, depth) = (level_map.width as i32, level_map.height as i32);
         let scale = 0.5;
@@ -347,26 +331,26 @@ fn run() -> Result<()> {
                 let pz = z as f32 * scale;
 
                 if g > 0.5 {
-                let p = Vec3::new(
-                    (px + 0.5*scale) - scale * 0.5 * width as f32,
-                    r * 8.0 * scale + 1.5,
-                    (pz + 0.5*scale) - scale * 0.5 * depth as f32);
-                println!("{:?}", p);
-                let diamond = world.borrow_mut().add_body(
-                    Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "diamond.obj", false)
-                                         .chain_err(|| "failed to load diamond mesh")?)),
-                                         diam_texture.clone(),
-                                         diam_shape.clone(),
-                                         body::BodyConfig { collide_sound: Some(0), ..Default::default() });
-                diamond.borrow_mut().set_position(p);
-                diamonds.borrow_mut().push(diamond.borrow().id);
-                let mut gear = Gear::new(world.borrow_mut().ode_world(),
-                diamond.clone(),
-                dJointTypeHinge);
-                gear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
-                gear.set_hinge_param(dParamFMax, 1000.0);
-                gear.set_hinge_param(dParamVel, 1.0);
-                diamgears.push(gear);
+                    let p = Vec3::new((px + 0.5 * scale) - scale * 0.5 * width as f32,
+                                      r * 8.0 * scale + 1.5,
+                                      (pz + 0.5 * scale) - scale * 0.5 * depth as f32);
+                    println!("{:?}", p);
+                    let diamond = world.borrow_mut().add_body(diam_mesh.clone(),
+                                                              diam_texture.clone(),
+                                                              diam_shape.clone(),
+                                                              body::BodyConfig {
+                                                                  collide_sound: Some(0),
+                                                                  ..Default::default()
+                                                              });
+                    diamond.borrow_mut().set_position(p);
+                    diamonds.borrow_mut().push(diamond.borrow().id);
+                    let mut gear = Gear::new(world.borrow_mut().ode_world(),
+                                             diamond.clone(),
+                                             dJointTypeHinge);
+                    gear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
+                    gear.set_hinge_param(dParamFMax, 1000.0);
+                    gear.set_hinge_param(dParamVel, 1.0);
+                    diamgears.push(gear);
                 }
             }
         }
@@ -447,8 +431,10 @@ fn run() -> Result<()> {
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
     let diamond_sounds = vec![
-        Rc::new(SimpleSound::new("sounds/elektro.wav").chain_err(|| "failed to load elektro sound")?),
-        Rc::new(SimpleSound::new("sounds/powerup1.wav").chain_err(|| "failed to load powerup1 sound")?),
+        Rc::new(SimpleSound::new("sounds/elektro.wav")
+                .chain_err(|| "failed to load elektro sound")?),
+        Rc::new(SimpleSound::new("sounds/powerup1.wav")
+                .chain_err(|| "failed to load powerup1 sound")?),
     ];
     {
         let plr_id = player.borrow_mut().id;
@@ -637,7 +623,8 @@ fn run() -> Result<()> {
             {
                 let body = w.bodies().iter().find(|&x| x.borrow().id == body_id).unwrap();
                 if let Some(idx) = body.borrow().collide_sound {
-                    mixer.play(&*diamond_sounds[idx], ()).chain_err(|| "failed to play diamond sound")?;
+                    mixer.play(&*diamond_sounds[idx], ())
+                        .chain_err(|| "failed to play diamond sound")?;
                 }
             }
             w.del_body(body_id);
