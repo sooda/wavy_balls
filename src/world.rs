@@ -339,7 +339,11 @@ impl World {
                         let effect = if player_action {
                             let dist = (fx - ::MAP_SZ / 2.0 - player_position.x)
                                 .hypot(fz - ::MAP_SZ / 2.0 - player_position.z);
-                            p.0 * (p.2 * dist).sin() / dist.max(1.0) // XXX make the center smooth, max(1,x) is a hack
+                            if dist >= 0.001 {
+                                p.0 * (p.2 * dist).sin() / dist
+                            } else {
+                                p.0
+                            }
                         } else {
                             0.0
                         };
