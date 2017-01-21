@@ -13,6 +13,8 @@ pub struct Input {
 
     pub camera: Vec2,
     pub player: Vec2,
+
+    pub action: bool,
 }
 
 impl Default for Input {
@@ -25,6 +27,8 @@ impl Default for Input {
 
             camera: na::zero(),
             player: na::zero(),
+
+            action: false,
         }
     }
 }
@@ -50,6 +54,7 @@ impl InputState {
                         Some(Keycode::Space) => input.jump = true,
                         Some(Keycode::R) => input.reset_camera = true,
                         Some(Keycode::S) => input.stop = true,
+                        Some(Keycode::A) => input.action = true,
                         _ => (),
                     }
                 }

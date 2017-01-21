@@ -112,6 +112,7 @@ pub struct World {
     body_id_counter: u64,
 
     pub heightfield: Vec<f32>,
+    pub heightfield_user: Vec<f32>,
     pub heightfield_width: i32,
     pub heightfield_depth: i32,
 }
@@ -141,6 +142,7 @@ impl World {
             contact_handlers: Vec::new(),
             body_id_counter: 0,
             heightfield: Vec::new(),
+            heightfield_user: Vec::new(),
             heightfield_width: ::MAP_RES as i32,
             heightfield_depth: ::MAP_RES as i32,
         }
@@ -229,6 +231,9 @@ impl World {
         self.heightfield.resize((self.heightfield_width * self.heightfield_depth) as usize,
                                 0.0);
 
+        self.heightfield_user.resize((self.heightfield_width * self.heightfield_depth) as usize,
+                                0.0);
+
         for x in 0..self.heightfield_width {
             for z in 0..self.heightfield_depth {
                 self.heightfield[(x + z * self.heightfield_width) as usize] =
@@ -259,8 +264,8 @@ impl World {
                                                    thickness,
                                                    wrap);
             ode::dGeomHeightfieldDataSetBounds(heightfield_data,
-                                               -5.0, // min height
-                                               5.0 /* max height */);
+                                               -50.0, // min height
+                                               50.0 /* max height */);
         };
 
         let geom =
@@ -309,7 +314,7 @@ impl World {
     }
 
     // Advance the world state forwards by dt seconds
-    pub fn step(&mut self, frame_dt: f32, h: bool) {
+    pub fn step(&mut self, frame_dt: f32, h: bool, batang: Option<Vec3>, p: (f32, f32, f32)) {
         if true {
             self.leftover_dt += frame_dt;
 
@@ -320,10 +325,23 @@ impl World {
 
                     for x in 0..self.heightfield_width {
                         for z in 0..self.heightfield_depth {
-                            self.heightfield[(x + z * self.heightfield_width) as usize] =
-                                (((x as f32) / self.heightfield_width as f32 * 20.0) +
-                                 self.accum_dt * 0.25)
-                                    .sin() * 5.0;
+                            let ix = (x + z * self.heightfield_width) as usize;
+                            let fx = x as f32;
+                            let fz = z as f32;
+
+                            let terrain = (
+                                (fx / self.heightfield_width as f32 * 20.0) +
+                                self.accum_dt * 0.25)
+                                .sin() * 5.0;
+
+                            let bam = match batang {
+                                Some(Vec3 { x, z, .. }) => p.0 * ((fx - ::MAP_SZ/2.0 - x).hypot(fz - ::MAP_SZ/2.0 - z) * p.2).sin(),
+                                None => 0.0,
+                            };
+
+                            self.heightfield_user[ix] *= p.1;
+                            self.heightfield_user[ix] += bam;
+                            self.heightfield[ix] = terrain + self.heightfield_user[ix];
                         }
                     }
                 }
