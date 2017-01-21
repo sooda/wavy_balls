@@ -15,6 +15,8 @@ pub struct Input {
     pub player: Vec2,
 
     pub action: bool,
+
+    pub zoom: f32,
 }
 
 impl Default for Input {
@@ -29,6 +31,8 @@ impl Default for Input {
             player: na::zero(),
 
             action: false,
+
+            zoom: 0.0,
         }
     }
 }
@@ -75,6 +79,13 @@ impl InputState {
                                      clamp_deadzone(ctrl.axis(RightY)) as f32 * scale);
             input.player = Vec2::new(clamp_deadzone(ctrl.axis(LeftX)) as f32 * scale,
                                      clamp_deadzone(ctrl.axis(LeftY)) as f32 * scale);
+
+            if ctrl.button(LeftShoulder) {
+                input.zoom += 0.05;
+            }
+            if ctrl.button(RightShoulder) {
+                input.zoom -= 0.05;
+            }
 
             if ctrl.button(Back) {
                 input.quit = true;

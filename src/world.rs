@@ -232,7 +232,7 @@ impl World {
                                 0.0);
 
         self.heightfield_user.resize((self.heightfield_width * self.heightfield_depth) as usize,
-                                0.0);
+                                     0.0);
 
         for x in 0..self.heightfield_width {
             for z in 0..self.heightfield_depth {

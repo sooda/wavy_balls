@@ -605,6 +605,8 @@ fn run() -> Result<()> {
 
     let mut times_jumped = 0u32;
 
+    let mut fov = PI / 2.0;
+
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
 
@@ -758,8 +760,10 @@ fn run() -> Result<()> {
         // angular momentum based control:
         player.borrow_mut().add_torque(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
 
+        fov = (fov + input.zoom).max(PI / 8.0).min(7.0 / 8.0 * PI);
+
         let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
-                                               PI / 2.0,
+                                               fov,
                                                znear,
                                                zfar)
             .to_matrix();
@@ -788,15 +792,15 @@ fn run() -> Result<()> {
                 let hh = hf[i as usize];
                 let r = (i + 1) as usize;
                 let d = (i + w.heightfield_width) as usize;
-                
+
                 let dx = hf.get(r).cloned().unwrap_or(hh) - hh;
                 let dz = hf.get(d).cloned().unwrap_or(hh) - hh;
-                
+
                 let xv = Vec3::new(::MAP_SZ / ::MAP_RES as f32, dx, 0.0).normalize();
                 let zv = Vec3::new(0.0, dz, ::MAP_SZ / ::MAP_RES as f32).normalize();
-                
+
                 let nor = zv.cross(&xv);
-                
+
                 v.h = world.borrow().heightfield[v.hmp as usize];
                 v.nor = *nor.as_ref();
             }
