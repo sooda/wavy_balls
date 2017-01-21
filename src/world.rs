@@ -176,10 +176,12 @@ impl World {
                     let trimesh_data = ode::dGeomTriMeshDataCreate();
 
                     ode::dGeomTriMeshDataBuildDouble(trimesh_data,
-                                                     vertices.as_ptr() as *const std::os::raw::c_void,
+                                                     vertices.as_ptr()
+                                                        as *const std::os::raw::c_void,
                                                      8 * 3, // vertex stride
                                                      vertices.len() as i32 / 3,
-                                                     indices.as_ptr() as *const std::os::raw::c_void,
+                                                     indices.as_ptr()
+                                                        as *const std::os::raw::c_void,
                                                      indices.len() as i32,
                                                      4 * 3);
 
@@ -245,7 +247,8 @@ impl World {
 
         unsafe {
             ode::dGeomHeightfieldDataBuildCallback(heightfield_data,
-                                                   self as *mut _ as *mut std::os::raw::c_void, // pointer to self as user ptr
+                                                   // user ptr is self
+                                                   self as *mut _ as *mut std::os::raw::c_void,
                                                    Some(heightfield_callback),
                                                    width,
                                                    depth,

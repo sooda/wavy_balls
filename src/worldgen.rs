@@ -89,20 +89,20 @@ pub fn load_level_from_desc(desc: &str) -> Worldgen {
                 }
                 "block" => {
                     let ch = args["ch"].chars().nth(0).unwrap();
-                    //                     let tile = Tile {
-                    //                         appearance: match *args.get("appearance").unwrap() {
-                    //                             "stone" => TileAppearance::Stone,
-                    //                             "plate" => TileAppearance::Plate,
-                    //                             "plant" => TileAppearance::Plant,
-                    //                             _ => panic!("invalid appearance for tile")
-                    //                         },
-                    //                         blocks_move: parse_bool(*args.get("block_move").unwrap_or(&"false")),
-                    //                         blocks_light: parse_bool(*args.get("block_vis").unwrap_or(&"false")),
-                    //                         height: args.get("height").unwrap_or(&"0.0").parse().unwrap()
-                    //                     };
-                    //                     let tile = Tile {
-                    //                         height: args.get("height").unwrap_or(&"0.0").parse().unwrap()
-                    //                     };
+                    // let tile = Tile {
+                    //     appearance: match *args.get("appearance").unwrap() {
+                    //         "stone" => TileAppearance::Stone,
+                    //         "plate" => TileAppearance::Plate,
+                    //         "plant" => TileAppearance::Plant,
+                    //         _ => panic!("invalid appearance for tile")
+                    //     },
+                    //     blocks_move: parse_bool(*args.get("block_move").unwrap_or(&"false")),
+                    //     blocks_light: parse_bool(*args.get("block_vis").unwrap_or(&"false")),
+                    //     height: args.get("height").unwrap_or(&"0.0").parse().unwrap()
+                    // };
+                    // let tile = Tile {
+                    //     height: args.get("height").unwrap_or(&"0.0").parse().unwrap()
+                    // };
                     let tile = Tile {
                         shape: match *args.get("shape").unwrap_or(&"flat") {
                             "flat" => Shape::Flat(args.get("height").unwrap().parse().unwrap()),
@@ -132,36 +132,36 @@ pub fn load_level_from_desc(desc: &str) -> Worldgen {
                     };
                     blocks.insert(ch, tile);
                 }
-                //                 "physent" => {
-                //                     let pos_t = args["pos"];
-                //                     let mut xy_t = pos_t.split(',');
-                //                     let mut pos = Pnt2::new(xy_t.next().unwrap().parse().unwrap(),
-                //                                                 xy_t.next().unwrap().parse().unwrap());
-                //                     pos.x += 0.5;
-                //                     pos.y += 0.5;
-                //                     match args["type"] {
-                //                         "spawn" => world.spawns.push(pos),
-                //                         ty => panic!("unknown entity type '{}'", ty)
-                //                     }
-                //                 }
-                //                 "gfxent" => {
-                //                     let pos_t = args["pos"];
-                //                     let mut xyz_t = pos_t.split(',');
-                //                     let mut pos = Pnt3::new(xyz_t.next().unwrap().parse().unwrap(),
-                //                                                 xyz_t.next().unwrap().parse().unwrap(),
-                //                                                 xyz_t.next().unwrap().parse().unwrap());
-                //                     pos.x += 0.5;
-                //                     pos.z += 0.5;
-                //                     match args["type"] {
-                //                         "pointlight" => {
-                //                             let r = args.get("r").unwrap_or(&"1.0").parse().unwrap();
-                //                             let g = args.get("g").unwrap_or(&"1.0").parse().unwrap();
-                //                             let b = args.get("b").unwrap_or(&"1.0").parse().unwrap();
-                //                             world.lights.push(Light::Point(pos, Vec3::new(r,g,b)));
-                //                         }
-                //                         ty => panic!("unknown entity type '{}'", ty)
-                //                     }
-                //                 }
+                // "physent" => {
+                //     let pos_t = args["pos"];
+                //     let mut xy_t = pos_t.split(',');
+                //     let mut pos = Pnt2::new(xy_t.next().unwrap().parse().unwrap(),
+                //                                 xy_t.next().unwrap().parse().unwrap());
+                //     pos.x += 0.5;
+                //     pos.y += 0.5;
+                //     match args["type"] {
+                //         "spawn" => world.spawns.push(pos),
+                //         ty => panic!("unknown entity type '{}'", ty)
+                //     }
+                // }
+                // "gfxent" => {
+                //     let pos_t = args["pos"];
+                //     let mut xyz_t = pos_t.split(',');
+                //     let mut pos = Pnt3::new(xyz_t.next().unwrap().parse().unwrap(),
+                //                                 xyz_t.next().unwrap().parse().unwrap(),
+                //                                 xyz_t.next().unwrap().parse().unwrap());
+                //     pos.x += 0.5;
+                //     pos.z += 0.5;
+                //     match args["type"] {
+                //         "pointlight" => {
+                //             let r = args.get("r").unwrap_or(&"1.0").parse().unwrap();
+                //             let g = args.get("g").unwrap_or(&"1.0").parse().unwrap();
+                //             let b = args.get("b").unwrap_or(&"1.0").parse().unwrap();
+                //             world.lights.push(Light::Point(pos, Vec3::new(r,g,b)));
+                //         }
+                //         ty => panic!("unknown entity type '{}'", ty)
+                //     }
+                // }
                 t => {
                     panic!("Unknown instruction '{}' in level data", t);
                 }

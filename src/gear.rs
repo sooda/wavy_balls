@@ -21,7 +21,8 @@ pub struct Gear {
 impl Gear {
     pub fn new(world: ode::dWorldID, body: Rc<RefCell<Body>>, joint_type: ode::dJointType) -> Self {
         // because:
-        // error: constant in pattern `dJointTypeHinge` should have an upper case name such as `D_JOINT_TYPE_HINGE`
+        // error: constant in pattern `dJointTypeHinge` should have an upper case name such as
+        // `D_JOINT_TYPE_HINGE`
 #[allow(warnings)]
         let joint = match joint_type {
             dJointTypeHinge => unsafe { ode::dJointCreateHinge(world, std::ptr::null_mut()) },
