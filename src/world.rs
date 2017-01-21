@@ -161,7 +161,7 @@ impl World {
     }
 
     pub fn add_body(&mut self,
-                    mesh: Rc<mesh::Mesh>,
+                    mesh: Rc<RefCell<mesh::Mesh>>,
                     texture: Rc<texture::Texture>,
                     shape: Rc<BodyShape>,
                     config: BodyConfig)
@@ -317,8 +317,17 @@ impl World {
     pub fn step(&mut self,
                 frame_dt: f32,
                 player_position: Vec3,
+                terrain: Rc<RefCell<Body>>,
                 player_action: bool,
                 p: (f32, f32, f32)) {
+        if false {
+            let mut terrain = terrain.borrow_mut();
+            terrain.mesh
+                .as_mut()
+                .unwrap()
+                .borrow_mut()
+                .update_mesh(|verts| verts.clear());
+        }
         if true {
             self.leftover_dt += frame_dt;
 

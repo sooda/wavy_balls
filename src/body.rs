@@ -6,6 +6,7 @@ use ode;
 use math::*;
 use errors::*;
 use std::rc::Rc;
+use std::cell::RefCell;
 use std::path::Path;
 use std;
 
@@ -80,7 +81,7 @@ impl Default for BodyConfig {
 }
 
 pub struct Body {
-    pub mesh: Option<Rc<mesh::Mesh>>,
+    pub mesh: Option<Rc<RefCell<mesh::Mesh>>>,
     pub texture: Option<Rc<texture::Texture>>,
     pub config: BodyConfig,
     pub shape: Rc<BodyShape>, // NOTE: holds memory of TriMesh!

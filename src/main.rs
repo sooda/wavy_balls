@@ -328,8 +328,8 @@ fn run() -> Result<()> {
 
 
     let player = world.borrow_mut().add_body(
-        Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj")
-                .chain_err(|| "failed to load ball mesh")?),
+        Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "ballo.obj", false)
+                .chain_err(|| "failed to load ball mesh")?)),
                 eh_texture.clone(),
                 Rc::new(body::BodyShape::Sphere{radius: 1.0}),
                 body::BodyConfig{
@@ -343,7 +343,8 @@ fn run() -> Result<()> {
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
 
-    if settings.get_u32("heightfield") == 1 {
+    // if settings.get_u32("heightfield") == 1
+    {
         // do not move this. this installs a self pointer to a C callback that shouldn't change
         world.borrow_mut().setup_dynamic_heightfield();
     }
@@ -416,25 +417,23 @@ fn run() -> Result<()> {
     let hm_prog = glium::Program::from_source(&display, HMAP_VS, HMAP_FS, None)
         .chain_err(|| "failed to create hmap program")?;
 
-    if settings.get_u32("heightfield") == 0 {
-        let world_mesh = mesh::Mesh::from_obj(&display, "level1.obj")
+    let world_mesh = mesh::Mesh::from_obj(&display, "level1.obj", true)
            .chain_err(|| "failed to load level mesh for draw")?;
-        let world_shape = Rc::new(
+    let world_shape = Rc::new(
             body::BodyShape::from_obj("level1.obj")
             .chain_err(|| "failed to load level mesh for phys")?);
-
-        let landscape =
-            world.borrow_mut().add_body(Rc::new(world_mesh),
-                                        landscape_texture,
-                                        world_shape,
-                                        body::BodyConfig { fixed: true, ..Default::default() });
-        landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
-    }
+    let world_mesh = Rc::new(RefCell::new(world_mesh));
+    let landscape =
+        world.borrow_mut().add_body(world_mesh.clone(),
+                                    landscape_texture,
+                                    world_shape,
+                                    body::BodyConfig { fixed: true, ..Default::default() });
+    landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
 
     for i in 0..10i32 {
         let ball = world.borrow_mut().add_body(
-            Rc::new(mesh::Mesh::from_obj(&display, "ballo.obj")
-                    .chain_err(|| "failed to load ball mesh")?),
+            Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "ballo.obj", false)
+                    .chain_err(|| "failed to load ball mesh")?)),
                     eh_texture.clone(),
                     Rc::new(body::BodyShape::Sphere{radius: 1.0}), body::BodyConfig::default());
         ball.borrow_mut().set_position(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
@@ -448,8 +447,8 @@ fn run() -> Result<()> {
     let ddiff = settings.get_vec3("diamonddiff");
     for i in 0..settings.get_u32("diamondcount") {
         let diamond = world.borrow_mut().add_body(
-            Rc::new(mesh::Mesh::from_obj(&display, "diamond.obj")
-                    .chain_err(|| "failed to load diamond mesh")?),
+            Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "diamond.obj", false)
+                    .chain_err(|| "failed to load diamond mesh")?)),
                     diam_texture.clone(),
                     diam_shape.clone(),
                     body::BodyConfig { fixed: true, ..Default::default() });
@@ -458,13 +457,13 @@ fn run() -> Result<()> {
     }
     // TODO: diamond animation
 
-    let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj")
+    let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj", false)
         .chain_err(|| "failed to load spinthing mesh for draw")?;
     let spin_shape = Rc::new(
         body::BodyShape::from_obj("spinthing.obj")
         .chain_err(|| "failed to load spinthing mesh for phys")?);
 
-    let spinthing = world.borrow_mut().add_body(Rc::new(spin_mesh),
+    let spinthing = world.borrow_mut().add_body(Rc::new(RefCell::new(spin_mesh)),
                                                 spin_texture.clone(),
                                                 spin_shape,
                                                 body::BodyConfig {
@@ -482,14 +481,14 @@ fn run() -> Result<()> {
     testgear.set_hinge_param(dParamFMax, 1000.0);
     testgear.set_hinge_param(dParamVel, 1.0);
 
-    let mesh = mesh::Mesh::from_obj(&display, "gear.obj")
+    let mesh = mesh::Mesh::from_obj(&display, "gear.obj", false)
         .chain_err(|| "failed to load gear mesh for draw")?;
     let shape = Rc::new(
         body::BodyShape::from_obj("gear.obj")
         .chain_err(|| "failed to load gear mesh for phys")?);
 
 
-    let body = world.borrow_mut().add_body(Rc::new(mesh),
+    let body = world.borrow_mut().add_body(Rc::new(RefCell::new(mesh)),
                                            spin_texture.clone(),
                                            shape,
                                            body::BodyConfig {
@@ -681,6 +680,7 @@ fn run() -> Result<()> {
         let player_position = player.borrow_mut().get_position();
         world.borrow_mut().step(dt,
                                 player_position,
+                                landscape.clone(),
                                 input.action,
                                 (settings.get_f32("heightaction_power"),
                                  settings.get_f32("heightaction_damp"),
@@ -785,7 +785,8 @@ fn run() -> Result<()> {
                   false)
             .chain_err(|| "failed to draw cubemap")?;
 
-        if settings.get_u32("heightfield") == 1 {
+        // if settings.get_u32("heightfield") == 1
+        {
             let w = world.borrow();
             let hf = &w.heightfield;
             for v in hm_buf.map().iter_mut() {
@@ -816,7 +817,8 @@ fn run() -> Result<()> {
                 write: true,
                 ..Default::default()
             };
-            if settings.get_u32("heightfield") == 1 {
+            // if settings.get_u32("heightfield") == 1
+            {
                 target.draw(&hm_buf,
                       &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
                       &hm_prog,
@@ -836,7 +838,6 @@ fn run() -> Result<()> {
             // i have no idea what i'm doing. this can't be right. thanks, compiler
             if let (&Some(ref mesh), &Some(ref texture)) = (&b.mesh, &b.texture) {
 
-
                 let ref texture = **texture;
 
                 let prog = match *texture {
@@ -845,7 +846,7 @@ fn run() -> Result<()> {
                 };
 
                 mesh
-                .draw(&mut target,
+                .borrow_mut().draw(&mut target,
                       &uniform! {
                       perspective: *projection.as_ref(),
                       modelview: *modelview.as_ref(),

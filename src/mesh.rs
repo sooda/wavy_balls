@@ -11,7 +11,7 @@ use math::*;
 use errors::*;
 
 #[derive(Clone, Copy)]
-struct Vertex {
+pub struct Vertex {
     position: [f32; 3],
     normal: [f32; 3],
     tex_coord: [f32; 3],
@@ -20,13 +20,15 @@ implement_vertex!(Vertex, position, normal, tex_coord);
 
 pub struct Mesh {
     buffer: glium::VertexBuffer<Vertex>,
+    orig_buffer: Option<Vec<Vertex>>,
 }
 
 impl Mesh {
     pub fn new<F: Facade>(f: &F,
                           positions: Vec<Pnt3>,
                           normals: Vec<Vec3>,
-                          texture_coordinates: Vec<Pnt3>)
+                          texture_coordinates: Vec<Pnt3>,
+                          retain: bool)
                           -> Result<Mesh> {
         let mut vs = Vec::with_capacity(positions.len());
         for ((p, n), t) in positions.into_iter()
@@ -40,16 +42,22 @@ impl Mesh {
             vs.push(v);
         }
 
+        let orig_buffer = if retain { Some(vs.clone()) } else { None };
+
         Ok(Mesh {
             buffer: glium::VertexBuffer::new(f, &vs).chain_err(|| "unable to create buffer")?,
+            orig_buffer: orig_buffer,
         })
     }
 
-    pub fn from_obj<F: Facade, P: AsRef<Path> + ?Sized>(f: &F, path: &P) -> Result<Mesh> {
+    pub fn from_obj<F: Facade, P: AsRef<Path> + ?Sized>(f: &F,
+                                                        path: &P,
+                                                        retain: bool)
+                                                        -> Result<Mesh> {
         let (positions, normals, texcoord) =
             obj::load_obj(path).chain_err(|| "unable to load .obj")?;
 
-        Mesh::new(f, positions, normals, texcoord)
+        Mesh::new(f, positions, normals, texcoord, retain)
     }
 
     pub fn for_cubemap<F: Facade>(f: &F) -> Result<Mesh> {
@@ -177,7 +185,8 @@ impl Mesh {
             uvs.push(*base + uv_3);
         }
 
-        Ok(Mesh::new(f, positions, normals, uvs)?)
+        let retain = false;
+        Ok(Mesh::new(f, positions, normals, uvs, retain)?)
     }
 
     pub fn draw<S: Surface, U: Uniforms>(&self,
@@ -223,5 +232,18 @@ impl Mesh {
         }
 
         Ok(())
+    }
+
+    pub fn update_mesh<T: FnOnce(&mut Vec<Vertex>)>(&mut self, func: T) {
+        if self.orig_buffer.is_none() {
+            self.orig_buffer = Some(Vec::new());
+        }
+        func(&mut self.orig_buffer.as_mut().unwrap());
+        for (buf_vert, orig_vert) in self.buffer
+            .map()
+            .iter_mut()
+            .zip(self.orig_buffer.as_mut().unwrap().iter()) {
+            *buf_vert = *orig_vert;
+        }
     }
 }
