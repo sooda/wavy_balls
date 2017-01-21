@@ -702,9 +702,10 @@ fn run() -> Result<()> {
                          Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
         let camera_pos = player.borrow_mut().get_position() + Vec3::new(0.0, 3.0, 5.0) * camera_rot;
 
-        let zfar = 500.0f32;
+        let zfar = 5000.0f32;
         let znear_default = 0.01f32;
-        let znear = {
+        // FIXME
+        let znear = if true { znear_default } else {
             let cam = camera_pos.to_point();
             let ball = player.borrow_mut().get_position().to_point();
             let cam_to_ball = (ball - cam).normalize();
