@@ -514,6 +514,7 @@ fn run() -> Result<()> {
                                                contact.geom.normal[2] as f32);
                         let coincide_vel = na::dot(&normal, &delta_vel).abs();
                         if coincide_vel > 4.0 {
+                            println!("{}   {} {} {}   {} {}", coincide_vel, contact.geom.normal[0], contact.geom.normal[1],contact.geom.normal[2], o1.get_linear_velocity(), o2.get_linear_velocity());
                             // bleh, can't ".chain_err(foo)?" this result in a handler
                             mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
                         }

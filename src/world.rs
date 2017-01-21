@@ -33,6 +33,7 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
                 break;
             }
         }
+        if bi1 == bi2 { println!("{}", bi1); return; }
         assert!(bi1 != bi2);
 
         if bi1 < bi2 {
@@ -259,8 +260,16 @@ impl World {
             unsafe { ode::dCreateHeightfield(self.ode_space, heightfield_data, true as i32) };
 
         unsafe {
+            // FIXME: use add_body
+            let ode_body = ode::dBodyCreate(self.ode_world);
+            ode::dGeomSetBody(geom, ode_body);
+            ode::dBodySetData(ode_body, self.body_id_counter as *mut std::os::raw::c_void);
+            ode::dBodySetKinematic(ode_body);
+            println!("ode bodu {}", self.body_id_counter);
+            self.body_id_counter += 1;
             // ode::dGeomSetBody(geom, std::ptr::null_mut());
             ode::dGeomSetPosition(geom, 0.0, 0.0, 0.0);
+            ode::dBodySetPosition(ode_body, 0.0, 0.0, 0.0);
             ode::dGeomSetCategoryBits(geom, BODY_CATEGORY_WORLD_BIT);
             ode::dGeomSetCollideBits(geom, BODY_COLLIDE_WORLD);
         };
@@ -282,6 +291,7 @@ impl World {
 
     // Advance the world state forwards by dt seconds
     pub fn step(&mut self, frame_dt: f32, h: bool) {
+        if true {
         self.leftover_dt += frame_dt;
 
         while self.leftover_dt >= PHYS_DT {
@@ -306,6 +316,7 @@ impl World {
                 ode::dWorldStep(self.ode_world, PHYS_DT as f64);
                 ode::dJointGroupEmpty(self.ode_contact_group);
             }
+        }
         }
     }
     pub fn bodies<'a>(&'a self) -> &'a Vec<Rc<RefCell<Body>>> {
