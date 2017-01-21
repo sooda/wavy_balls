@@ -15,6 +15,7 @@ pub enum BodyShape {
         vertices: Vec<f64>,
         indices: Vec<u32>,
     },
+    HeightField,
 }
 
 impl BodyShape {
@@ -77,8 +78,8 @@ impl Default for BodyConfig {
 }
 
 pub struct Body {
-    pub mesh: Rc<mesh::Mesh>,
-    pub texture: Rc<texture::Texture>,
+    pub mesh: Option<Rc<mesh::Mesh>>,
+    pub texture: Option<Rc<texture::Texture>>,
     pub config: BodyConfig,
     pub shape: Rc<BodyShape>, // NOTE: holds memory of TriMesh!
     pub ode_body: ode::dBodyID,

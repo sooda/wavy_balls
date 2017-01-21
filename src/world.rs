@@ -33,7 +33,10 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
                 break;
             }
         }
-        if bi1 == bi2 { println!("{}", bi1); return; }
+        if bi1 == bi2 {
+            println!("{}", bi1);
+            return;
+        }
         assert!(bi1 != bi2);
 
         if bi1 < bi2 {
@@ -184,6 +187,7 @@ impl World {
 
                 }
             }
+            _ => unreachable!(), // heightfield is special
         };
 
         println!("Create body {:?}", config);
@@ -205,9 +209,9 @@ impl World {
         };
 
         let body = Rc::new(RefCell::new(Body {
-            mesh: mesh,
+            mesh: Some(mesh),
             shape: shape,
-            texture: texture,
+            texture: Some(texture),
             config: config,
             ode_body: ode_body,
             ode_geom: ode_geom,
@@ -218,7 +222,7 @@ impl World {
         body
     }
 
-    pub fn setup_dynamic_heightfield(&mut self) {
+    pub fn setup_dynamic_heightfield(&mut self) -> ode::dBodyID {
 
         self.heightfield.resize((self.heightfield_width * self.heightfield_depth) as usize,
                                 0.0);
@@ -272,7 +276,19 @@ impl World {
             ode::dBodySetPosition(ode_body, 0.0, 0.0, 0.0);
             ode::dGeomSetCategoryBits(geom, BODY_CATEGORY_WORLD_BIT);
             ode::dGeomSetCollideBits(geom, BODY_COLLIDE_WORLD);
-        };
+
+            let body = Rc::new(RefCell::new(Body {
+                mesh: None,
+                shape: Rc::new(BodyShape::HeightField),
+                texture: None,
+                config: Default::default(),
+                ode_body: ode_body,
+                ode_geom: geom,
+                id: self.body_id_counter,
+            }));
+            self.bodies.push(body.clone());
+            ode_body
+        }
     }
 
     pub fn del_body(&mut self, body_id: u64 /* body: &Body */) {
@@ -292,31 +308,31 @@ impl World {
     // Advance the world state forwards by dt seconds
     pub fn step(&mut self, frame_dt: f32, h: bool) {
         if true {
-        self.leftover_dt += frame_dt;
+            self.leftover_dt += frame_dt;
 
-        while self.leftover_dt >= PHYS_DT {
-            self.leftover_dt -= PHYS_DT;
-            if h {
-                self.accum_dt += PHYS_DT;
+            while self.leftover_dt >= PHYS_DT {
+                self.leftover_dt -= PHYS_DT;
+                if h {
+                    self.accum_dt += PHYS_DT;
 
-                for x in 0..self.heightfield_width {
-                    for z in 0..self.heightfield_depth {
-                        self.heightfield[(x + z * self.heightfield_width) as usize] =
-                            (((x as f32) / self.heightfield_width as f32 * 20.0) +
-                             self.accum_dt * 0.25)
-                                .sin() * 5.0;
+                    for x in 0..self.heightfield_width {
+                        for z in 0..self.heightfield_depth {
+                            self.heightfield[(x + z * self.heightfield_width) as usize] =
+                                (((x as f32) / self.heightfield_width as f32 * 20.0) +
+                                 self.accum_dt * 0.0)
+                                    .sin() * 5.0;
+                        }
                     }
                 }
-            }
-            unsafe {
-                ode::dSpaceCollide(self.ode_space,
-                                   self as *mut _ as *mut std::os::raw::c_void,
-                                   Some(near_callback));
+                unsafe {
+                    ode::dSpaceCollide(self.ode_space,
+                                       self as *mut _ as *mut std::os::raw::c_void,
+                                       Some(near_callback));
 
-                ode::dWorldStep(self.ode_world, PHYS_DT as f64);
-                ode::dJointGroupEmpty(self.ode_contact_group);
+                    ode::dWorldStep(self.ode_world, PHYS_DT as f64);
+                    ode::dJointGroupEmpty(self.ode_contact_group);
+                }
             }
-        }
         }
     }
     pub fn bodies<'a>(&'a self) -> &'a Vec<Rc<RefCell<Body>>> {

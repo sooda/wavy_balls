@@ -514,7 +514,13 @@ fn run() -> Result<()> {
                                                contact.geom.normal[2] as f32);
                         let coincide_vel = na::dot(&normal, &delta_vel).abs();
                         if coincide_vel > 4.0 {
-                            println!("{}   {} {} {}   {} {}", coincide_vel, contact.geom.normal[0], contact.geom.normal[1],contact.geom.normal[2], o1.get_linear_velocity(), o2.get_linear_velocity());
+                            println!("{}   {} {} {}   {} {}",
+                                     coincide_vel,
+                                     contact.geom.normal[0],
+                                     contact.geom.normal[1],
+                                     contact.geom.normal[2],
+                                     o1.get_linear_velocity(),
+                                     o2.get_linear_velocity());
                             // bleh, can't ".chain_err(foo)?" this result in a handler
                             mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
                         }
@@ -763,27 +769,34 @@ fn run() -> Result<()> {
             let model = body.borrow_mut().get_posrot_homogeneous();
             let modelview = cam_view * model;
 
-            let body::Body { ref mesh, ref texture, .. } = *body.borrow_mut();
+            // let body::Body { ref mesh, ref texture, .. } = *body.borrow_mut();
+            let b = body.borrow_mut();
+            // i have no idea what i'm doing. this can't be right. thanks, compiler
+            let ref mesh = b.mesh;
+            let ref texture = b.texture;
+            if let (&Some(ref mesh), &Some(ref texture)) = (mesh, texture) {
 
-            let texture = &**texture;
 
-            let prog = match *texture {
-                texture::Texture::Twod(_) => &program,
-                texture::Texture::Array(_) => &program_array,
-            };
+                let ref texture = *texture;
 
-            mesh
+                let prog = match **texture {
+                    texture::Texture::Twod(_) => &program,
+                    texture::Texture::Array(_) => &program_array,
+                };
+
+                mesh
                 .draw(&mut target,
                       &uniform! {
                       perspective: *projection.as_ref(),
                       modelview: *modelview.as_ref(),
-                      tex: texture,
+                      tex: &**texture,
                       player_pos: *player_pos.as_ref(),
                   },
                       prog,
                       true,
                       true) // FIXME only do alpha rendering for ball
                 .chain_err(|| "failed to draw mesh")?;
+            }
         }
 
         particles.draw(&mut target, *projection.as_ref(), *cam_view.as_ref())
