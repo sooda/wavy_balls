@@ -60,7 +60,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::collections::HashSet;
 
-use na::{ToHomogeneous, Rotation3, Norm};
+use na::{ToHomogeneous, Rotation3, Norm, Cross};
 use glium::Surface;
 use inotify::INotify;
 use inotify::ffi::*;
@@ -74,11 +74,12 @@ use settings::Settings;
 #[derive(Copy, Clone)]
 struct HmapVertex {
     pos: [f32; 2],
+    nor: [f32; 3],
     tex: [f32; 2],
     h: f32,
     hmp: u32,
 }
-implement_vertex!(HmapVertex, pos, tex, h);
+implement_vertex!(HmapVertex, pos, nor, tex, h);
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -125,16 +126,19 @@ static HMAP_VS: &'static str = r#"
     uniform mat4 modelview;
 
     in vec2 pos;
+    in vec3 nor;
     in vec2 tex;
     in float h;
 
     out vec3 f_position;
+    out vec3 f_nor;
     out vec2 f_tex;
 
     void main() {
         gl_Position = perspective * modelview * vec4(pos.x, h, pos.y, 1.0);
         f_position = vec3(pos.x, h, pos.y);
         f_tex = tex;
+        f_nor = nor;
     }
 "#;
 
@@ -145,10 +149,12 @@ static HMAP_FS: &'static str = r#"
     uniform sampler2D texs;
 
     in vec3 f_position;
+    in vec3 f_nor;
     in vec2 f_tex;
 
     void main() {
         vec3 color = texture(texs, f_tex).rgb;
+        color *= pow(dot(vec3(0,1,0), f_nor), 4);
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color *= 0.4;
         gl_FragColor = vec4(color, 1.0);
@@ -361,18 +367,21 @@ fn run() -> Result<()> {
 
             plane_verts.push(HmapVertex {
                 pos: [px, pz],
+                nor: [0.0, 0.0, 0.0],
                 tex: [tx, tz],
                 h: 0.0,
                 hmp: hmp,
             });
             plane_verts.push(HmapVertex {
                 pos: [px + s, pz],
+                nor: [0.0, 0.0, 0.0],
                 tex: [tx + ts, tz],
                 h: 0.0,
                 hmp: hmp + 1,
             });
             plane_verts.push(HmapVertex {
                 pos: [px, pz + s],
+                nor: [0.0, 0.0, 0.0],
                 tex: [tx, tz + ts],
                 h: 0.0,
                 hmp: hmp + st,
@@ -380,18 +389,21 @@ fn run() -> Result<()> {
 
             plane_verts.push(HmapVertex {
                 pos: [px + s, pz],
+                nor: [0.0, 0.0, 0.0],
                 tex: [tx + ts, tz],
                 h: 0.0,
                 hmp: hmp + 1,
             });
             plane_verts.push(HmapVertex {
                 pos: [px + s, pz + s],
+                nor: [0.0, 0.0, 0.0],
                 tex: [tx + ts, tz + ts],
                 h: 0.0,
                 hmp: hmp + 1 + st,
             });
             plane_verts.push(HmapVertex {
                 pos: [px, pz + s],
+                nor: [0.0, 0.0, 0.0],
                 tex: [tx, tz + ts],
                 h: 0.0,
                 hmp: hmp + st,
@@ -763,8 +775,24 @@ fn run() -> Result<()> {
             .chain_err(|| "failed to draw cubemap")?;
 
         if settings.get_u32("heightfield") == 1 {
+            let w = world.borrow();
+            let hf = &w.heightfield;
             for v in hm_buf.map().iter_mut() {
+                let i = v.hmp as i32;
+                let hh = hf[i as usize];
+                let r = (i + 1) as usize;
+                let d = (i + w.heightfield_width) as usize;
+                
+                let dx = hf.get(r).cloned().unwrap_or(hh) - hh;
+                let dz = hf.get(d).cloned().unwrap_or(hh) - hh;
+                
+                let xv = Vec3::new(::MAP_SZ / ::MAP_RES as f32, dx, 0.0).normalize();
+                let zv = Vec3::new(0.0, dz, ::MAP_SZ / ::MAP_RES as f32).normalize();
+                
+                let nor = zv.cross(&xv);
+                
                 v.h = world.borrow().heightfield[v.hmp as usize];
+                v.nor = *nor.as_ref();
             }
         }
 
