@@ -66,7 +66,7 @@ use inotify::INotify;
 use inotify::ffi::*;
 
 use math::*;
-use audio::{AudioMixer, JumpSound, HitSound, DiamondSound};
+use audio::{AudioMixer, JumpSound, HitSound, SimpleSound};
 use body::Body;
 use gear::{Gear, dJointTypeHinge, dParamFMax, dParamVel};
 use settings::Settings;
@@ -540,10 +540,9 @@ fn run() -> Result<()> {
         .chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
-    let diamond_sound = Rc::new(DiamondSound::new().chain_err(|| "failed to load diamond sound")?);
     let diamond_sounds = vec![
-        diamond_sound.clone(),
-        // TODO: powerups etc here
+        Rc::new(SimpleSound::new("sounds/elektro.wav").chain_err(|| "failed to load elektro sound")?),
+        Rc::new(SimpleSound::new("sounds/powerup1.wav").chain_err(|| "failed to load powerup1 sound")?),
     ];
     {
         let plr_id = player.borrow_mut().id;
@@ -619,7 +618,7 @@ fn run() -> Result<()> {
                              .chain_err(|| "failed to load powerup mesh")?)),
                              pup0_texture.clone(),
                              diam_shape.clone(),
-                             body::BodyConfig {  ..Default::default() });
+                             body::BodyConfig { collide_sound: Some(1), ..Default::default() });
     body.borrow_mut().set_position(settings.get_vec3("pup0"));
     diamonds.borrow_mut().push(body.borrow().id);
 

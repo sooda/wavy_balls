@@ -161,17 +161,18 @@ impl Sound<VolumeEffect> for HitSound {
         }
     }
 }
-pub struct DiamondSound {
+
+pub struct SimpleSound {
     clip: SoundClip,
 }
 
-impl DiamondSound {
-    pub fn new() -> Result<Self> {
-        Ok(DiamondSound { clip: SoundClip::new("181321__ojirio__snare.wav")? })
+impl SimpleSound {
+    pub fn new(filename: &str) -> Result<Self> {
+        Ok(SimpleSound { clip: SoundClip::new(filename)? })
     }
 }
 
-impl Sound<NoEffect> for DiamondSound {
+impl Sound<NoEffect> for SimpleSound {
     type PlayArgs = ();
 
     fn play(&self, _args: ()) -> AudioTape<NoEffect> {
