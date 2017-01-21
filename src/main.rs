@@ -676,14 +676,13 @@ fn run() -> Result<()> {
         }
 
         // Step the world
-        let p = player.borrow_mut().get_position();
+        let player_position = player.borrow_mut().get_position();
         world.borrow_mut().step(dt,
-                                settings.get_u32("heightfield") == 1,
-                                if input.action { Some(p) } else { None },
+                                player_position,
+                                input.action,
                                 (settings.get_f32("heightaction_power"),
-                                settings.get_f32("heightaction_damp"),
-                                settings.get_f32("heightaction_sin"))
-                               );
+                                 settings.get_f32("heightaction_damp"),
+                                 settings.get_f32("heightaction_sin")));
         particles.step(dt);
         for &body_id in del_diamonds.borrow().iter() {
             world.borrow_mut().del_body(body_id);

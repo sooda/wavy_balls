@@ -314,35 +314,41 @@ impl World {
     }
 
     // Advance the world state forwards by dt seconds
-    pub fn step(&mut self, frame_dt: f32, h: bool, batang: Option<Vec3>, p: (f32, f32, f32)) {
+    pub fn step(&mut self,
+                frame_dt: f32,
+                player_position: Vec3,
+                player_action: bool,
+                p: (f32, f32, f32)) {
         if true {
             self.leftover_dt += frame_dt;
 
             while self.leftover_dt >= PHYS_DT {
                 self.leftover_dt -= PHYS_DT;
-                if h {
-                    self.accum_dt += PHYS_DT;
+                self.accum_dt += PHYS_DT;
 
-                    for x in 0..self.heightfield_width {
-                        for z in 0..self.heightfield_depth {
-                            let ix = (x + z * self.heightfield_width) as usize;
-                            let fx = x as f32;
-                            let fz = z as f32;
+                for x in 0..self.heightfield_width {
+                    for z in 0..self.heightfield_depth {
+                        let ix = (x + z * self.heightfield_width) as usize;
+                        let fx = x as f32;
+                        let fz = z as f32;
 
-                            let terrain = (
-                                (fx / self.heightfield_width as f32 * 20.0) +
-                                self.accum_dt * 0.25)
-                                .sin() * 5.0;
+                        let terrain = ((fx / self.heightfield_width as f32 * 20.0) +
+                                       self.accum_dt * 0.25)
+                            .sin() * 5.0;
 
-                            let bam = match batang {
-                                Some(Vec3 { x, z, .. }) => p.0 * ((fx - ::MAP_SZ/2.0 - x).hypot(fz - ::MAP_SZ/2.0 - z) * p.2).sin(),
-                                None => 0.0,
-                            };
+                        let effect = if player_action {
+                            p.0 *
+                            ((fx - ::MAP_SZ / 2.0 - player_position.x)
+                                    .hypot(fz - ::MAP_SZ / 2.0 - player_position.z) *
+                             p.2)
+                                .sin()
+                        } else {
+                            0.0
+                        };
 
-                            self.heightfield_user[ix] *= p.1;
-                            self.heightfield_user[ix] += bam;
-                            self.heightfield[ix] = terrain + self.heightfield_user[ix];
-                        }
+                        self.heightfield_user[ix] *= p.1;
+                        self.heightfield_user[ix] += effect;
+                        self.heightfield[ix] = terrain + self.heightfield_user[ix];
                     }
                 }
                 unsafe {
