@@ -513,6 +513,7 @@ fn run() -> Result<()> {
                              body::BodyConfig { collide_sound: Some(1), ..Default::default() });
     body.borrow_mut().set_position(settings.get_vec3("pup0"));
     diamonds.borrow_mut().push(body.borrow().id);
+    let ebin_powerup = body.borrow().id;
 
     let mut allow_jump = true;
 
@@ -531,6 +532,9 @@ fn run() -> Result<()> {
     let mut times_jumped = 0u32;
 
     let mut fov = PI / 2.0;
+
+    let force_mag_duration = 10 * 1000;
+    let mut force_mag_end = sdl_timer.ticks();
 
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
@@ -555,7 +559,7 @@ fn run() -> Result<()> {
         let mut force_y = 0.0;
         let mut force_z = 0.0;
 
-        let force_mag = 10.0;
+        let force_mag = if last_t >= force_mag_end { 10.0 } else { 31.4 };
 
         let input = input_state.process_input(&mut event_pump);
 
@@ -626,11 +630,12 @@ fn run() -> Result<()> {
                     mixer.play(&*diamond_sounds[idx], ())
                         .chain_err(|| "failed to play diamond sound")?;
                 }
+                if body.borrow().id == ebin_powerup {
+                    force_mag_end = sdl_timer.ticks() + force_mag_duration;
+                }
             }
             w.del_body(body_id);
-            let idx = diamonds.borrow().iter().position(|&x| x == body_id).unwrap();
-            diamonds.borrow_mut().remove(idx);
-            // XXX or retain
+            diamonds.borrow_mut().retain(|&x| x != body_id);
         }
         del_diamonds.borrow_mut().clear();
 
