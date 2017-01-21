@@ -445,17 +445,24 @@ fn run() -> Result<()> {
         .chain_err(|| "failed to load diamond mesh for phys")?);
     let dstart = settings.get_vec3("diamondstart");
     let ddiff = settings.get_vec3("diamonddiff");
+    let mut diamgears = Vec::new();
     for i in 0..settings.get_u32("diamondcount") {
         let diamond = world.borrow_mut().add_body(
             Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "diamond.obj", false)
-                    .chain_err(|| "failed to load diamond mesh")?)),
-                    diam_texture.clone(),
-                    diam_shape.clone(),
-                    body::BodyConfig { fixed: true, ..Default::default() });
+                                 .chain_err(|| "failed to load diamond mesh")?)),
+                                 diam_texture.clone(),
+                                 diam_shape.clone(),
+                                 body::BodyConfig {  ..Default::default() });
         diamond.borrow_mut().set_position(dstart + i as f32 * ddiff);
         diamonds.borrow_mut().push(diamond.borrow().id);
+        let mut gear = Gear::new(world.borrow_mut().ode_world(),
+                                 diamond.clone(),
+                                 dJointTypeHinge);
+        gear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
+        gear.set_hinge_param(dParamFMax, 1000.0);
+        gear.set_hinge_param(dParamVel, 1.0);
+        diamgears.push(gear);
     }
-    // TODO: diamond animation
 
     let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj", false)
         .chain_err(|| "failed to load spinthing mesh for draw")?;
@@ -705,7 +712,9 @@ fn run() -> Result<()> {
         let zfar = 5000.0f32;
         let znear_default = 0.01f32;
         // FIXME
-        let znear = if true { znear_default } else {
+        let znear = if true {
+            znear_default
+        } else {
             let cam = camera_pos.to_point();
             let ball = player.borrow_mut().get_position().to_point();
             let cam_to_ball = (ball - cam).normalize();

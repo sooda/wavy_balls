@@ -239,10 +239,11 @@ impl Mesh {
             self.orig_buffer = Some(Vec::new());
         }
         func(&mut self.orig_buffer.as_mut().unwrap());
-        for (buf_vert, orig_vert) in self.buffer
-            .map()
-            .iter_mut()
-            .zip(self.orig_buffer.as_mut().unwrap().iter()) {
+        for (buf_vert, orig_vert) in
+            self.buffer
+                .map()
+                .iter_mut()
+                .zip(self.orig_buffer.as_mut().unwrap().iter()) {
             *buf_vert = *orig_vert;
         }
     }
