@@ -88,6 +88,9 @@ impl InputState {
             if ctrl.button(Y) {
                 input.stop = true;
             }
+            if ctrl.button(B) {
+                input.action = true;
+            }
         } else {
             let m = pump.relative_mouse_state();
             let scale = 1.0 / 10.0;
