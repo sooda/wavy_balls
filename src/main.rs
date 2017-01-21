@@ -417,10 +417,10 @@ fn run() -> Result<()> {
         .chain_err(|| "failed to create hmap program")?;
 
     if settings.get_u32("heightfield") == 0 {
-        let world_mesh = mesh::Mesh::from_obj(&display, "mappi.obj")
+        let world_mesh = mesh::Mesh::from_obj(&display, "level1.obj")
            .chain_err(|| "failed to load level mesh for draw")?;
         let world_shape = Rc::new(
-            body::BodyShape::from_obj("mappi.obj")
+            body::BodyShape::from_obj("level1.obj")
             .chain_err(|| "failed to load level mesh for phys")?);
 
         let landscape =
