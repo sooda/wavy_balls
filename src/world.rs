@@ -116,6 +116,7 @@ pub struct World {
     pub heightfield_width: i32,
     pub heightfield_depth: i32,
 }
+
 impl World {
     pub fn new() -> World {
 
@@ -216,10 +217,11 @@ impl World {
             mesh: Some(mesh),
             shape: shape,
             texture: Some(texture),
-            config: config,
+            config: config.clone(),
             ode_body: ode_body,
             ode_geom: ode_geom,
             id: self.body_id_counter,
+            collide_sound: config.collide_sound,
         }));
         self.bodies.push(body.clone());
         self.body_id_counter += 1;
@@ -293,6 +295,7 @@ impl World {
                 ode_body: ode_body,
                 ode_geom: geom,
                 id: self.body_id_counter,
+                collide_sound: None,
             }));
             self.bodies.push(body.clone());
             ode_body

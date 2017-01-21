@@ -21,3 +21,5 @@ heightfield 1
 heightaction_power 0.55
 heightaction_damp 0.999
 heightaction_sin 0.2
+
+pup0 3.0 6.0 3.0

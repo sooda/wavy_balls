@@ -323,6 +323,9 @@ fn run() -> Result<()> {
     let diam_texture = Rc::new(
         texture::load_texture(&display, "diamond.png")
         .chain_err(|| "failed to load diamond texture")?);
+    let pup0_texture = Rc::new(
+        texture::load_texture(&display, "powerup0.png")
+        .chain_err(|| "failed to load powerup texture")?);
     let hm_texture = texture::load_texture(&display, "ground.png")
         .chain_err(|| "failed to loda ground texture")?;
 
@@ -452,7 +455,7 @@ fn run() -> Result<()> {
                                  .chain_err(|| "failed to load diamond mesh")?)),
                                  diam_texture.clone(),
                                  diam_shape.clone(),
-                                 body::BodyConfig {  ..Default::default() });
+                                 body::BodyConfig { collide_sound: Some(0), ..Default::default() });
         diamond.borrow_mut().set_position(dstart + i as f32 * ddiff);
         diamonds.borrow_mut().push(diamond.borrow().id);
         let mut gear = Gear::new(world.borrow_mut().ode_world(),
@@ -538,6 +541,10 @@ fn run() -> Result<()> {
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
     let diamond_sound = Rc::new(DiamondSound::new().chain_err(|| "failed to load diamond sound")?);
+    let diamond_sounds = vec![
+        diamond_sound.clone(),
+        // TODO: powerups etc here
+    ];
     {
         let plr_id = player.borrow_mut().id;
         let mixer = mixer.clone();
@@ -589,15 +596,12 @@ fn run() -> Result<()> {
         let plr_id = player.borrow_mut().id;
         let del_diamonds = del_diamonds.clone();
         let diamonds = diamonds.clone();
-        let mixer = mixer.clone();
-        let diamond_sound = diamond_sound.clone();
         let diamond_collision_handler =
             move |o1: &mut Body, o2: &mut Body, _contact: &mut ode::dContact| {
                 if o1.id == plr_id || o2.id == plr_id {
                     let (_player, diamond) = if o1.id == plr_id { (o1, o2) } else { (o2, o1) };
                     if diamonds.borrow().contains(&diamond.id) {
                         del_diamonds.borrow_mut().insert(diamond.id);
-                        mixer.play(&*diamond_sound, ()).expect("failed to play diamond sound");
                         // don't cause physical collision
                         true
                     } else {
@@ -610,6 +614,14 @@ fn run() -> Result<()> {
         world.borrow_mut().add_contact_handler(Box::new(diamond_collision_handler));
     }
 
+    let body = world.borrow_mut().add_body(
+        Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "powerup0.obj", false)
+                             .chain_err(|| "failed to load powerup mesh")?)),
+                             pup0_texture.clone(),
+                             diam_shape.clone(),
+                             body::BodyConfig {  ..Default::default() });
+    body.borrow_mut().set_position(settings.get_vec3("pup0"));
+    diamonds.borrow_mut().push(body.borrow().id);
 
     let mut allow_jump = true;
 
@@ -717,7 +729,14 @@ fn run() -> Result<()> {
                                  settings.get_f32("heightaction_sin")));
         particles.step(dt);
         for &body_id in del_diamonds.borrow().iter() {
-            world.borrow_mut().del_body(body_id);
+            let mut w = world.borrow_mut();
+            {
+                let body = w.bodies().iter().find(|&x| x.borrow().id == body_id).unwrap();
+                if let Some(idx) = body.borrow().collide_sound {
+                    mixer.play(&*diamond_sounds[idx], ()).chain_err(|| "failed to play diamond sound")?;
+                }
+            }
+            w.del_body(body_id);
             let idx = diamonds.borrow().iter().position(|&x| x == body_id).unwrap();
             diamonds.borrow_mut().remove(idx);
             // XXX or retain

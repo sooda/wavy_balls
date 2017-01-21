@@ -43,7 +43,7 @@ impl BodyShape {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct BodyConfig {
     pub fixed: bool,
     pub friction: f32,
@@ -51,6 +51,7 @@ pub struct BodyConfig {
     pub density: f32,
     pub category_bits: u64,
     pub collide_bits: u64,
+    pub collide_sound: Option<usize>,
 }
 
 // individual bits for where object belongs to
@@ -76,6 +77,7 @@ impl Default for BodyConfig {
             density: 1.0,
             category_bits: BODY_CATEGORY_OBJS_BIT,
             collide_bits: BODY_COLLIDE_OBJS,
+            collide_sound: None,
         }
     }
 }
@@ -88,6 +90,7 @@ pub struct Body {
     pub ode_body: ode::dBodyID,
     pub ode_geom: ode::dGeomID,
     pub id: u64,
+    pub collide_sound: Option<usize>, // used for collectable diamonds and powerups
 }
 
 impl std::cmp::PartialEq for Body {
