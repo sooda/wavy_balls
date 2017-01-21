@@ -285,14 +285,13 @@ fn run() -> Result<()> {
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
 
+    let level_map = texture::load_image("level1.png").chain_err(|| "failed to load level")?;
     {
         let landscape_texture = Rc::new(
         texture::load_texture(&display, "ruohe.png")
         .chain_err(|| "failed to load landscape texture")?);
-        let level_heightfield =
-            texture::load_image("level1.png").chain_err(|| "failed to load level")?;
         // do not move this. this installs a self pointer to a C callback that shouldn't change
-        world.borrow_mut().setup_heightfield(&display, level_heightfield, landscape_texture);
+        world.borrow_mut().setup_heightfield(&display, &level_map, landscape_texture);
     }
     // let landscape =
     // world.borrow_mut().add_body(world_mesh.clone(),
@@ -334,6 +333,45 @@ fn run() -> Result<()> {
         gear.set_hinge_param(dParamVel, 1.0);
         diamgears.push(gear);
     }
+    {
+        let (width, depth) = (level_map.width as i32, level_map.height as i32);
+        let scale = 0.5;
+
+        for x in 0..width {
+            for z in 0..depth {
+                let hmp = (z * width + x) as usize;
+                let r = level_map.data[hmp * 4 + 0] as f32 / 256.0;
+                let g = level_map.data[hmp * 4 + 1] as f32 / 256.0;
+                let _b = level_map.data[hmp * 4 + 2] as f32 / 256.0;
+                let px = x as f32 * scale;
+                let pz = z as f32 * scale;
+
+                if g > 0.5 {
+                let p = Vec3::new(
+                    (px + 0.5*scale) - scale * 0.5 * width as f32,
+                    r * 8.0 * scale + 1.5,
+                    (pz + 0.5*scale) - scale * 0.5 * depth as f32);
+                println!("{:?}", p);
+                let diamond = world.borrow_mut().add_body(
+                    Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "diamond.obj", false)
+                                         .chain_err(|| "failed to load diamond mesh")?)),
+                                         diam_texture.clone(),
+                                         diam_shape.clone(),
+                                         body::BodyConfig { collide_sound: Some(0), ..Default::default() });
+                diamond.borrow_mut().set_position(p);
+                diamonds.borrow_mut().push(diamond.borrow().id);
+                let mut gear = Gear::new(world.borrow_mut().ode_world(),
+                diamond.clone(),
+                dJointTypeHinge);
+                gear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
+                gear.set_hinge_param(dParamFMax, 1000.0);
+                gear.set_hinge_param(dParamVel, 1.0);
+                diamgears.push(gear);
+                }
+            }
+        }
+    }
+
 
     let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj", false)
         .chain_err(|| "failed to load spinthing mesh for draw")?;

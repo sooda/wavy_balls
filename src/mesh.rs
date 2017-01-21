@@ -73,7 +73,7 @@ impl Mesh {
     }
 
     pub fn from_texture<F: Facade>(f: &F,
-                                   texture: glium::texture::RawImage2d<'static, u8>,
+                                   texture: &glium::texture::RawImage2d<'static, u8>,
                                    scale: f32)
                                    -> (Result<Mesh>, (i32, i32), Vec<f32>) {
         let retain = true;

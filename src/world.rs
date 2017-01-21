@@ -233,7 +233,7 @@ impl World {
 
     pub fn setup_heightfield<F: Facade>(&mut self,
                                         f: &F,
-                                        texture: glium::texture::RawImage2d<'static, u8>,
+                                        texture: &glium::texture::RawImage2d<'static, u8>,
                                         visible_texture: Rc<texture::Texture>) {
 
         // create mesh based on texture
