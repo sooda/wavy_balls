@@ -17,3 +17,5 @@ heightaction_damp 0.999
 heightaction_sin 0.2
 
 pup0 3.0 6.0 3.0
+
+# TODO: have N powerup types (more speed, less friction, .. for example) and specify their map colors here
