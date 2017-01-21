@@ -18,6 +18,6 @@ heightfield 1
 #diamondstart 25.0 -16.0 -8.0
 #heightfield 0
 
-heightaction_power 0.15
+heightaction_power 0.55
 heightaction_damp 0.999
-heightaction_sin 0.5
+heightaction_sin 0.2
