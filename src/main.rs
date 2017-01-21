@@ -37,9 +37,6 @@ mod settings;
 
 mod ode;
 
-const MAP_SZ: f32 = 200.0f32;
-const MAP_RES: u32 = 200u32;
-
 mod errors {
     error_chain! {
         errors {
@@ -60,7 +57,7 @@ use std::cell::RefCell;
 use std::path::Path;
 use std::collections::HashSet;
 
-use na::{ToHomogeneous, Rotation3, Norm, Cross};
+use na::{ToHomogeneous, Rotation3, Norm};
 use glium::Surface;
 use inotify::INotify;
 use inotify::ffi::*;
@@ -70,16 +67,6 @@ use audio::{AudioMixer, JumpSound, HitSound, SimpleSound};
 use body::Body;
 use gear::{Gear, dJointTypeHinge, dParamFMax, dParamVel};
 use settings::Settings;
-
-#[derive(Copy, Clone)]
-struct HmapVertex {
-    pos: [f32; 2],
-    nor: [f32; 3],
-    tex: [f32; 2],
-    h: f32,
-    hmp: u32,
-}
-implement_vertex!(HmapVertex, pos, nor, tex, h);
 
 static VERTEX_SHADER: &'static str = r#"
     #version 140
@@ -119,47 +106,6 @@ static FRAGMENT_SHADER: &'static str = r#"
     }
 "#;
 
-static HMAP_VS: &'static str = r#"
-    #version 140
-
-    uniform mat4 perspective;
-    uniform mat4 modelview;
-
-    in vec2 pos;
-    in vec3 nor;
-    in vec2 tex;
-    in float h;
-
-    out vec3 f_position;
-    out vec3 f_nor;
-    out vec2 f_tex;
-
-    void main() {
-        gl_Position = perspective * modelview * vec4(pos.x, h, pos.y, 1.0);
-        f_position = vec3(pos.x, h, pos.y);
-        f_tex = tex;
-        f_nor = nor;
-    }
-"#;
-
-static HMAP_FS: &'static str = r#"
-    #version 140
-
-    uniform vec3 player_pos;
-    uniform sampler2D texs;
-
-    in vec3 f_position;
-    in vec3 f_nor;
-    in vec2 f_tex;
-
-    void main() {
-        vec3 color = texture(texs, f_tex).rgb;
-        color *= pow(dot(vec3(0,1,0), f_nor), 4);
-        if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
-            color *= 0.4;
-        gl_FragColor = vec4(color, 1.0);
-    }
-"#;
 
 static FRAGMENT_SHADER_ARRAY: &'static str = r#"
     #version 140
@@ -309,14 +255,10 @@ fn run() -> Result<()> {
 
     let mut last_t = sdl_timer.ticks();
 
-
     let world = Rc::new(RefCell::new(world::World::new()));
     let eh_texture = Rc::new(
         texture::load_texture(&display, "eh.png")
         .chain_err(|| "failed to load ball texture")?);
-    let landscape_texture = Rc::new(
-        texture::load_texture(&display, "ruohe.png")
-        .chain_err(|| "failed to load landscape texture")?);
     let spin_texture = Rc::new(
         texture::load_texture(&display, "ruohe.png")
         .chain_err(|| "failed to load spin texture")?);
@@ -326,9 +268,6 @@ fn run() -> Result<()> {
     let pup0_texture = Rc::new(
         texture::load_texture(&display, "powerup0.png")
         .chain_err(|| "failed to load powerup texture")?);
-    let hm_texture = texture::load_texture(&display, "ground.png")
-        .chain_err(|| "failed to loda ground texture")?;
-
 
     let player = world.borrow_mut().add_body(
         Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "ballo.obj", false)
@@ -346,93 +285,22 @@ fn run() -> Result<()> {
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
 
-    // if settings.get_u32("heightfield") == 1
     {
+        let landscape_texture = Rc::new(
+        texture::load_texture(&display, "ruohe.png")
+        .chain_err(|| "failed to load landscape texture")?);
+        let level_heightfield =
+            texture::load_image("level1.png").chain_err(|| "failed to load level")?;
         // do not move this. this installs a self pointer to a C callback that shouldn't change
-        world.borrow_mut().setup_dynamic_heightfield();
+        world.borrow_mut().setup_heightfield(&display, level_heightfield, landscape_texture);
     }
-
-    let mut plane_verts = vec![];
-    for x in 0..world.borrow().heightfield_resolution - 1 {
-        for z in 0..world.borrow().heightfield_resolution - 1 {
-            let hmp = (z * world.borrow().heightfield_resolution + x) as u32;
-
-            let tx = x as f32 / world.borrow().heightfield_resolution as f32;
-            let tz = z as f32 / world.borrow().heightfield_resolution as f32;
-            let ts = 1.0f32 / world.borrow().heightfield_resolution as f32;
-
-            let s = (1.0f32 / world.borrow().heightfield_resolution as f32) * (MAP_SZ + 1.0);
-            let px = ((x as f32 / world.borrow().heightfield_resolution as f32)) * (MAP_SZ + 1.0) -
-                     (MAP_SZ / 2.0);
-            let pz = ((z as f32 / world.borrow().heightfield_resolution as f32)) * (MAP_SZ + 1.0) -
-                     (MAP_SZ / 2.0);
-
-            let st = world.borrow().heightfield_resolution as u32;
-
-            plane_verts.push(HmapVertex {
-                pos: [px, pz],
-                nor: [0.0, 0.0, 0.0],
-                tex: [tx, tz],
-                h: 0.0,
-                hmp: hmp,
-            });
-            plane_verts.push(HmapVertex {
-                pos: [px + s, pz],
-                nor: [0.0, 0.0, 0.0],
-                tex: [tx + ts, tz],
-                h: 0.0,
-                hmp: hmp + 1,
-            });
-            plane_verts.push(HmapVertex {
-                pos: [px, pz + s],
-                nor: [0.0, 0.0, 0.0],
-                tex: [tx, tz + ts],
-                h: 0.0,
-                hmp: hmp + st,
-            });
-
-            plane_verts.push(HmapVertex {
-                pos: [px + s, pz],
-                nor: [0.0, 0.0, 0.0],
-                tex: [tx + ts, tz],
-                h: 0.0,
-                hmp: hmp + 1,
-            });
-            plane_verts.push(HmapVertex {
-                pos: [px + s, pz + s],
-                nor: [0.0, 0.0, 0.0],
-                tex: [tx + ts, tz + ts],
-                h: 0.0,
-                hmp: hmp + 1 + st,
-            });
-            plane_verts.push(HmapVertex {
-                pos: [px, pz + s],
-                nor: [0.0, 0.0, 0.0],
-                tex: [tx, tz + ts],
-                h: 0.0,
-                hmp: hmp + st,
-            });
-        }
-    }
-
-    let mut hm_buf = glium::VertexBuffer::dynamic(&display, &plane_verts)
-        .chain_err(|| "failed to create hmap buffer")?;
-    let hm_prog = glium::Program::from_source(&display, HMAP_VS, HMAP_FS, None)
-        .chain_err(|| "failed to create hmap program")?;
-
-    let world_mesh = mesh::Mesh::from_obj(&display, "level1.obj", true)
-           .chain_err(|| "failed to load level mesh for draw")?;
-    let world_shape = Rc::new(
-            body::BodyShape::from_obj("level1.obj")
-            .chain_err(|| "failed to load level mesh for phys")?);
-    let world_mesh = Rc::new(RefCell::new(world_mesh));
-    let landscape =
-        world.borrow_mut().add_body(world_mesh.clone(),
-                                    landscape_texture,
-                                    world_shape,
-                                    body::BodyConfig { fixed: true, ..Default::default() });
-    landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
-
+    // let landscape =
+    // world.borrow_mut().add_body(world_mesh.clone(),
+    // landscape_texture,
+    // world_shape,
+    // body::BodyConfig { fixed: true, ..Default::default() });
+    // landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
+    //
     for i in 0..10i32 {
         let ball = world.borrow_mut().add_body(
             Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "ballo.obj", false)
@@ -721,7 +589,6 @@ fn run() -> Result<()> {
         let player_position = player.borrow_mut().get_position();
         world.borrow_mut().step(dt,
                                 player_position,
-                                landscape.clone(),
                                 input.action,
                                 (settings.get_f32("heightaction_power"),
                                  settings.get_f32("heightaction_damp"),
@@ -836,7 +703,7 @@ fn run() -> Result<()> {
             .chain_err(|| "failed to draw cubemap")?;
 
         // if settings.get_u32("heightfield") == 1
-        {
+        /*{
             let w = world.borrow();
             let hf = &w.heightfield;
             for v in hm_buf.map().iter_mut() {
@@ -856,12 +723,12 @@ fn run() -> Result<()> {
                 v.h = world.borrow().heightfield[v.hmp as usize];
                 v.nor = *nor.as_ref();
             }
-        }
+        }*/
 
         let player_pos = player.borrow_mut().get_position();
         {
             // TODO: tää koodi lähtee menee t: Jontte , pelkkää debuggii vaa
-            use glium::draw_parameters::DepthTest;
+            /*use glium::draw_parameters::DepthTest;
             let mut params: glium::draw_parameters::DrawParameters = Default::default();
             params.depth = glium::Depth {
                 test: DepthTest::IfLess,
@@ -881,7 +748,7 @@ fn run() -> Result<()> {
                             player_pos: *player_pos.as_ref(), texs: &hm_texture },
                         &params)
                 .chain_err(|| "failed to draw cyndis on hönö")?;
-            }
+            }*/
         }
 
         for body in world.borrow().bodies() {

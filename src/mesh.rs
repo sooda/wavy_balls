@@ -55,6 +55,7 @@ impl Mesh {
         let gpu_clone = if retain { Some(vs.clone()) } else { None };
 
         Ok(Mesh {
+            // TODO consider glium::VertexBuffer::dynamic()
             buffer: glium::VertexBuffer::new(f, &vs).chain_err(|| "unable to create buffer")?,
             orig_buffer: orig_buffer,
             gpu_clone: gpu_clone,
@@ -69,6 +70,63 @@ impl Mesh {
             obj::load_obj(path).chain_err(|| "unable to load .obj")?;
 
         Mesh::new(f, positions, normals, texcoord, retain)
+    }
+
+    pub fn from_texture<F: Facade>(f: &F,
+                                   texture: glium::texture::RawImage2d<'static, u8>,
+                                   scale: f32)
+                                   -> (Result<Mesh>, (i32, i32), Vec<f32>) {
+        let retain = true;
+        let (width, depth) = (texture.width as i32, texture.height as i32);
+        let mut positions = Vec::new();
+        let mut normals = Vec::new();
+        let mut texture_coordinates = Vec::new();
+
+        for x in 0..width - 1 {
+            for z in 0..depth - 1 {
+                // let hmp = (z * width + x) as u32;
+
+                let tx = x as f32 / width as f32;
+                let tz = z as f32 / depth as f32;
+
+                let ts = 1.0f32 / width as f32;
+                let s = (1.0f32 / width as f32) * scale;
+
+                let px = ((x as f32 / width as f32)) * scale;
+                let pz = ((z as f32 / depth as f32)) * scale;
+
+                // let st = width as u32;
+
+                positions.push(Pnt3::new(px, 0.0, pz));
+                normals.push(Vec3::new(0.0, 0.0, 0.0));
+                texture_coordinates.push(Pnt3::new(tx, tz, 0.0));
+
+                positions.push(Pnt3::new(px + s, 0.0, pz));
+                normals.push(Vec3::new(0.0, 0.0, 0.0));
+                texture_coordinates.push(Pnt3::new(tx + ts, tz, 0.0));
+
+                positions.push(Pnt3::new(px, 0.0, pz + s));
+                normals.push(Vec3::new(0.0, 0.0, 0.0));
+                texture_coordinates.push(Pnt3::new(tx, tz + ts, 0.0));
+
+                positions.push(Pnt3::new(px + s, 0.0, pz));
+                normals.push(Vec3::new(0.0, 0.0, 0.0));
+                texture_coordinates.push(Pnt3::new(tx + ts, tz, 0.0));
+
+                positions.push(Pnt3::new(px + s, 0.0, pz + s));
+                normals.push(Vec3::new(0.0, 0.0, 0.0));
+                texture_coordinates.push(Pnt3::new(tx + ts, tz + ts, 0.0));
+
+                positions.push(Pnt3::new(px, 0.0, pz + s));
+                normals.push(Vec3::new(0.0, 0.0, 0.0));
+                texture_coordinates.push(Pnt3::new(tx, tz + ts, 0.0));
+            }
+        }
+
+        // let mut hm_buf = glium::VertexBuffer::dynamic(&display, &plane_verts)
+        let mut heightfield = Vec::new();
+        heightfield.resize((width * depth) as usize, 0.0);
+        (Mesh::new(f, positions, normals, texture_coordinates, retain), (width, depth), heightfield)
     }
 
     pub fn for_cubemap<F: Facade>(f: &F) -> Result<Mesh> {

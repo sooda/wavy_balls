@@ -1,4 +1,7 @@
 use body::{Body, BodyShape, BodyConfig, BODY_CATEGORY_TERRAIN_BIT, BODY_COLLIDE_TERRAIN};
+use glium;
+use glium::backend::Facade;
+use mesh::Mesh;
 use ode;
 use std;
 use math::*;
@@ -98,7 +101,7 @@ unsafe extern "C" fn heightfield_callback(user_data: *mut std::os::raw::c_void,
                                           z: i32)
                                           -> f64 {
     let world: &mut World = &mut *(user_data as *mut World);
-    world.heightfield[(x + z * world.heightfield_resolution) as usize] as f64
+    world.heightfield[(x + z * world.heightfield_resolution.0) as usize] as f64
 }
 
 pub struct World {
@@ -113,8 +116,8 @@ pub struct World {
 
     pub heightfield: Vec<f32>,
     pub heightfield_user: Vec<f32>,
-    pub heightfield_resolution: i32,
-    pub heightfield_size: f32,
+    pub heightfield_resolution: (i32, i32),
+    pub heightfield_scale: f32,
 }
 
 impl World {
@@ -144,8 +147,8 @@ impl World {
             body_id_counter: 0,
             heightfield: Vec::new(),
             heightfield_user: Vec::new(),
-            heightfield_resolution: ::MAP_RES as i32,
-            heightfield_size: ::MAP_SZ as f32,
+            heightfield_resolution: (0, 0),
+            heightfield_scale: 1.0,
         }
     }
 
@@ -228,41 +231,42 @@ impl World {
         body
     }
 
-    pub fn setup_dynamic_heightfield(&mut self) -> ode::dBodyID {
+    pub fn setup_heightfield<F: Facade>(&mut self,
+                                        f: &F,
+                                        texture: glium::texture::RawImage2d<'static, u8>,
+                                        visible_texture: Rc<texture::Texture>) {
 
-        self.heightfield
-            .resize((self.heightfield_resolution * self.heightfield_resolution) as usize,
-                    0.0);
+        // create mesh based on texture
 
-        self.heightfield_user
-            .resize((self.heightfield_resolution * self.heightfield_resolution) as usize,
-                    0.0);
+        let (mesh, reso, hfield) = Mesh::from_texture(f, texture, self.heightfield_scale);
+        let mut mesh = mesh.expect("mesh load fail");
 
-        for x in 0..self.heightfield_resolution {
-            for z in 0..self.heightfield_resolution {
-                self.heightfield[(x + z * self.heightfield_resolution) as usize] =
-                    ((x as f32) / self.heightfield_resolution as f32) * 5.0;
-            }
-        }
+
+        self.heightfield = hfield;
+        self.heightfield_resolution = reso;
 
         let heightfield_data = unsafe { ode::dGeomHeightfieldDataCreate() };
-
-        let (width, depth) = (self.heightfield_size, self.heightfield_size);
 
         let scale = 1.0; // "vertical height scale multiplier"
         let offset = 0.0f64; // vetical height offset
         let thickness = 0.1;
         let wrap = false as i32; // whether to wrap the heightfield infinitely
 
+        if false {
+            mesh.update_mesh(|_a, _b| {});
+        }
+
         unsafe {
             ode::dGeomHeightfieldDataBuildCallback(heightfield_data,
                                                    // user ptr is self
                                                    self as *mut _ as *mut std::os::raw::c_void,
                                                    Some(heightfield_callback),
-                                                   width as f64,
-                                                   depth as f64,
-                                                   self.heightfield_resolution,
-                                                   self.heightfield_resolution,
+                                                   self.heightfield_resolution.0 as f64 *
+                                                   self.heightfield_scale as f64,
+                                                   self.heightfield_resolution.1 as f64 *
+                                                   self.heightfield_scale as f64,
+                                                   self.heightfield_resolution.0,
+                                                   self.heightfield_resolution.1,
                                                    scale,
                                                    offset,
                                                    thickness,
@@ -289,9 +293,9 @@ impl World {
             ode::dGeomSetCollideBits(geom, BODY_COLLIDE_TERRAIN);
 
             let body = Rc::new(RefCell::new(Body {
-                mesh: None,
+                mesh: Some(Rc::new(RefCell::new(mesh))),
                 shape: Rc::new(BodyShape::HeightField),
-                texture: None,
+                texture: Some(visible_texture),
                 config: Default::default(),
                 ode_body: ode_body,
                 ode_geom: geom,
@@ -299,7 +303,6 @@ impl World {
                 collide_sound: None,
             }));
             self.bodies.push(body.clone());
-            ode_body
         }
     }
 
@@ -320,17 +323,16 @@ impl World {
     // Advance the world state forwards by dt seconds
     pub fn step(&mut self,
                 frame_dt: f32,
-                player_position: Vec3,
-                terrain: Rc<RefCell<Body>>,
-                player_action: bool,
-                p: (f32, f32, f32)) {
+                _player_position: Vec3,
+                _player_action: bool,
+                _p: (f32, f32, f32)) {
         self.leftover_dt += frame_dt;
 
         while self.leftover_dt >= PHYS_DT {
             self.leftover_dt -= PHYS_DT;
             self.accum_dt += PHYS_DT;
 
-            for x in 0..self.heightfield_resolution {
+            /*for x in 0..self.heightfield_resolution {
                 for z in 0..self.heightfield_resolution {
                     let ix = (x + z * self.heightfield_resolution) as usize;
                     let fx = x as f32;
@@ -354,7 +356,7 @@ impl World {
                     self.heightfield_user[ix] += effect;
                     self.heightfield[ix] = terrain + self.heightfield_user[ix];
                 }
-            }
+            }*/
             unsafe {
                 ode::dSpaceCollide(self.ode_space,
                                    self as *mut _ as *mut std::os::raw::c_void,
@@ -375,49 +377,50 @@ impl World {
         // terrain.borrow_mut().set_position(heightfield_origin);
 
         // deform mesh based on heightfield
-        let mut terrain = terrain.borrow_mut();
-        terrain.mesh
-            .as_mut()
-            .unwrap()
-            .borrow_mut()
-            .update_mesh(|orig_verts, new_verts| {
-                for (orig_vert, gpu_vert) in orig_verts.iter().zip(new_verts.iter_mut()) {
+        // let mut terrain = terrain.borrow_mut();
+        // terrain.mesh
+        // .as_mut()
+        // .unwrap()
+        // .borrow_mut()
+        // .update_mesh(|orig_verts, new_verts| {
+        // for (orig_vert, gpu_vert) in orig_verts.iter().zip(new_verts.iter_mut()) {
+        //
+        // find position in heightfield
+        // let mut heightfield_origin = Vec3::new(-self.heightfield_size / 2.0,
+        // 0.0,
+        // -self.heightfield_size / 2.0);
+        //
+        // let stride = self.heightfield_resolution as f32 / self.heightfield_size;
+        //
+        // heightfield_origin += Vec3::new((player_position.x / stride).floor() * stride,
+        // (player_position.y / stride).floor() * stride,
+        // (player_position.z / stride).floor() * stride);
+        //
+        // let v = heightfield_origin -
+        // let v = Vec3::new(orig_vert.position[0],
+        // orig_vert.position[1],
+        // orig_vert.position[2]) -
+        // heightfield_origin;
+        //
+        // let heightfield_pos = Vec3::new(v.x / stride, v.y / stride, v.z / stride);
+        //
+        // let xi = heightfield_pos.x.floor() as i32;
+        // let zi = heightfield_pos.z.floor() as i32;
+        //
+        // if xi < 0 || xi >= self.heightfield_resolution || zi < 0 ||
+        // zi >= self.heightfield_resolution {
+        // continue;
+        // }
+        //
+        //
+        // let offset = self.heightfield[(xi + zi * self.heightfield_resolution) as usize];
+        //
+        // gpu_vert.position[0] = orig_vert.position[0];
+        // gpu_vert.position[1] = orig_vert.position[1] + offset;
+        // gpu_vert.position[2] = orig_vert.position[2];
+        // }
+        // });
 
-                    // find position in heightfield
-                    let mut heightfield_origin = Vec3::new(-self.heightfield_size / 2.0,
-                                                           0.0,
-                                                           -self.heightfield_size / 2.0);
-
-                    let stride = self.heightfield_resolution as f32 / self.heightfield_size;
-
-                    heightfield_origin += Vec3::new((player_position.x / stride).floor() * stride,
-                                                    (player_position.y / stride).floor() * stride,
-                                                    (player_position.z / stride).floor() * stride);
-
-                    // let v = heightfield_origin -
-                    let v = Vec3::new(orig_vert.position[0],
-                                      orig_vert.position[1],
-                                      orig_vert.position[2]) -
-                            heightfield_origin;
-
-                    let heightfield_pos = Vec3::new(v.x / stride, v.y / stride, v.z / stride);
-
-                    let xi = heightfield_pos.x.floor() as i32;
-                    let zi = heightfield_pos.z.floor() as i32;
-
-                    if xi < 0 || xi >= self.heightfield_resolution || zi < 0 ||
-                       zi >= self.heightfield_resolution {
-                        continue;
-                    }
-
-
-                    let offset = self.heightfield[(xi + zi * self.heightfield_resolution) as usize];
-
-                    gpu_vert.position[0] = orig_vert.position[0];
-                    gpu_vert.position[1] = orig_vert.position[1] + offset;
-                    gpu_vert.position[2] = orig_vert.position[2];
-                }
-            });
     }
     pub fn bodies<'a>(&'a self) -> &'a Vec<Rc<RefCell<Body>>> {
         &self.bodies
