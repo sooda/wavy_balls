@@ -12,7 +12,7 @@ liftgear 15.0 -15.0 -8.0
 diamonddiff 0.0 0.0 -4.0
 diamondcount 10
 
-diamondstart 4.0 0.0 0.0
+diamondstart 4.0 4.0 0.0
 heightfield 1
 
 #diamondstart 25.0 -16.0 -8.0
