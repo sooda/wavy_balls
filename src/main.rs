@@ -353,21 +353,21 @@ fn run() -> Result<()> {
     }
 
     let mut plane_verts = vec![];
-    for x in 0..world.borrow().heightfield_width - 1 {
-        for z in 0..world.borrow().heightfield_depth - 1 {
-            let hmp = (z * world.borrow().heightfield_width + x) as u32;
+    for x in 0..world.borrow().heightfield_resolution - 1 {
+        for z in 0..world.borrow().heightfield_resolution - 1 {
+            let hmp = (z * world.borrow().heightfield_resolution + x) as u32;
 
-            let tx = x as f32 / world.borrow().heightfield_width as f32;
-            let tz = z as f32 / world.borrow().heightfield_depth as f32;
-            let ts = 1.0f32 / world.borrow().heightfield_depth as f32;
+            let tx = x as f32 / world.borrow().heightfield_resolution as f32;
+            let tz = z as f32 / world.borrow().heightfield_resolution as f32;
+            let ts = 1.0f32 / world.borrow().heightfield_resolution as f32;
 
-            let s = (1.0f32 / world.borrow().heightfield_depth as f32) * (MAP_SZ + 1.0);
-            let px = ((x as f32 / world.borrow().heightfield_width as f32)) * (MAP_SZ + 1.0) -
+            let s = (1.0f32 / world.borrow().heightfield_resolution as f32) * (MAP_SZ + 1.0);
+            let px = ((x as f32 / world.borrow().heightfield_resolution as f32)) * (MAP_SZ + 1.0) -
                      (MAP_SZ / 2.0);
-            let pz = ((z as f32 / world.borrow().heightfield_depth as f32)) * (MAP_SZ + 1.0) -
+            let pz = ((z as f32 / world.borrow().heightfield_resolution as f32)) * (MAP_SZ + 1.0) -
                      (MAP_SZ / 2.0);
 
-            let st = world.borrow().heightfield_width as u32;
+            let st = world.borrow().heightfield_resolution as u32;
 
             plane_verts.push(HmapVertex {
                 pos: [px, pz],
@@ -843,7 +843,7 @@ fn run() -> Result<()> {
                 let i = v.hmp as i32;
                 let hh = hf[i as usize];
                 let r = (i + 1) as usize;
-                let d = (i + w.heightfield_width) as usize;
+                let d = (i + w.heightfield_resolution) as usize;
 
                 let dx = hf.get(r).cloned().unwrap_or(hh) - hh;
                 let dz = hf.get(d).cloned().unwrap_or(hh) - hh;
@@ -860,6 +860,7 @@ fn run() -> Result<()> {
 
         let player_pos = player.borrow_mut().get_position();
         {
+            // TODO: tää koodi lähtee menee t: Jontte , pelkkää debuggii vaa
             use glium::draw_parameters::DepthTest;
             let mut params: glium::draw_parameters::DrawParameters = Default::default();
             params.depth = glium::Depth {
@@ -867,12 +868,16 @@ fn run() -> Result<()> {
                 write: true,
                 ..Default::default()
             };
-            // if settings.get_u32("heightfield") == 1
             {
+                let stride = MAP_RES as f32 / MAP_SZ;
+                let offset = Vec3::new((player_position.x / stride).floor() * stride,
+                                       0.0, // (player_position.y / stride).floor() * stride,
+                                       (player_position.z / stride).floor() * stride);
+                let modelview = cam_view * Iso3::new(offset, na::zero()).to_homogeneous();
                 target.draw(&hm_buf,
                       &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
                       &hm_prog,
-                      &uniform! { perspective: *projection.as_ref(), modelview: *cam_view.as_ref(),
+                      &uniform! { perspective: *projection.as_ref(), modelview: *modelview.as_ref(),
                             player_pos: *player_pos.as_ref(), texs: &hm_texture },
                         &params)
                 .chain_err(|| "failed to draw cyndis on hönö")?;

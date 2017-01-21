@@ -1,7 +1,7 @@
 # hello this is a comment
 
-display_width 800
-display_height 600
+display_width 1280
+display_height 800
 
 volume_scale 0.01
 

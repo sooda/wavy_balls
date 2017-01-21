@@ -4,6 +4,7 @@ use glium::Surface;
 use glium::uniforms::Uniforms;
 
 use obj;
+use std;
 
 use std::path::Path;
 
@@ -12,15 +13,23 @@ use errors::*;
 
 #[derive(Clone, Copy)]
 pub struct Vertex {
-    position: [f32; 3],
-    normal: [f32; 3],
-    tex_coord: [f32; 3],
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub tex_coord: [f32; 3],
 }
 implement_vertex!(Vertex, position, normal, tex_coord);
 
+impl std::cmp::PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.position == other.position && self.normal == other.normal &&
+        self.tex_coord == other.tex_coord
+    }
+}
+
 pub struct Mesh {
     buffer: glium::VertexBuffer<Vertex>,
-    orig_buffer: Option<Vec<Vertex>>,
+    gpu_clone: Option<Vec<Vertex>>, // the vecs as they appear in the gpu memory currently
+    orig_buffer: Option<Vec<Vertex>>, // the vecs as they were when the mesh was loaded
 }
 
 impl Mesh {
@@ -43,10 +52,12 @@ impl Mesh {
         }
 
         let orig_buffer = if retain { Some(vs.clone()) } else { None };
+        let gpu_clone = if retain { Some(vs.clone()) } else { None };
 
         Ok(Mesh {
             buffer: glium::VertexBuffer::new(f, &vs).chain_err(|| "unable to create buffer")?,
             orig_buffer: orig_buffer,
+            gpu_clone: gpu_clone,
         })
     }
 
@@ -234,17 +245,39 @@ impl Mesh {
         Ok(())
     }
 
-    pub fn update_mesh<T: FnOnce(&mut Vec<Vertex>)>(&mut self, func: T) {
+    pub fn update_mesh<T: FnOnce(&Vec<Vertex>, &mut Vec<Vertex>)>(&mut self, func: T) {
         if self.orig_buffer.is_none() {
             self.orig_buffer = Some(Vec::new());
         }
-        func(&mut self.orig_buffer.as_mut().unwrap());
-        for (buf_vert, orig_vert) in
-            self.buffer
-                .map()
-                .iter_mut()
-                .zip(self.orig_buffer.as_mut().unwrap().iter()) {
-            *buf_vert = *orig_vert;
+        let gpu_clone = self.gpu_clone.as_mut().unwrap();
+        let mut temp_buf = gpu_clone.clone();
+        func(&self.orig_buffer.as_ref().unwrap(), &mut temp_buf);
+
+        // check which vertices changed and only update those
+        // cyndis can review
+        let mut iter = 0;
+        while iter < temp_buf.len() {
+            // check if vertex at this point changed
+            if temp_buf[iter] != gpu_clone[iter] {
+
+                let mut last = temp_buf.len();
+                // find next vertex that didn't change...
+                for end in iter..temp_buf.len() {
+                    if temp_buf[iter] == gpu_clone[iter] {
+                        last = end;
+                        break;
+                    }
+                }
+                // copy vertices from iter to last
+                let buf = self.buffer.slice(iter..last).unwrap();
+                buf.write(&temp_buf[iter..last]);
+                for i in last..iter {
+                    gpu_clone[i] = temp_buf[i];
+                }
+                iter = last;
+            } else {
+                iter += 1;
+            }
         }
     }
 }
