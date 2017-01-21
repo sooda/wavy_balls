@@ -501,6 +501,7 @@ fn run() -> Result<()> {
         let mixer = mixer.clone();
         let hit_sound = hit_sound.clone();
         let diamonds = diamonds.clone();
+        let vol_scale = settings.get_f32("volume_scale");
         let landscape_sound_handler =
             move |o1: &mut Body, o2: &mut Body, contact: &mut ode::dContact| {
                 // diamonds don't cause a sound here
@@ -513,16 +514,12 @@ fn run() -> Result<()> {
                                                contact.geom.normal[1] as f32,
                                                contact.geom.normal[2] as f32);
                         let coincide_vel = na::dot(&normal, &delta_vel).abs();
-                        if coincide_vel > 4.0 {
-                            println!("{}   {} {} {}   {} {}",
-                                     coincide_vel,
-                                     contact.geom.normal[0],
-                                     contact.geom.normal[1],
-                                     contact.geom.normal[2],
-                                     o1.get_linear_velocity(),
-                                     o2.get_linear_velocity());
+                        let volume = (vol_scale * coincide_vel * coincide_vel).min(1.0);
+                        // TODO: multiple different sounds for even more dramatic collisions
+                        if volume > 0.01 {
+                            println!("vol {}", vol_scale * coincide_vel * coincide_vel);
                             // bleh, can't ".chain_err(foo)?" this result in a handler
-                            mixer.play(&*hit_sound, ()).expect("failed to play hit sound");
+                            mixer.play(&*hit_sound, (volume,)).expect("failed to play hit sound");
                         }
                     }
                 }

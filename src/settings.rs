@@ -33,6 +33,10 @@ impl Settings {
         self.items.get(name).unwrap()[0].parse().unwrap()
     }
 
+    pub fn get_f32(&self, name: &str) -> f32 {
+        self.items.get(name).unwrap()[0].parse().unwrap()
+    }
+
     pub fn get_vec3(&self, name: &str) -> Vec3 {
         let mut v = self.items.get(name).unwrap().iter().map(|x| x.parse().unwrap());
         Vec3::new(v.next().unwrap(), v.next().unwrap(), v.next().unwrap())

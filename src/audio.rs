@@ -3,7 +3,7 @@ use std::path::Path;
 use std;
 
 use sdl2::mixer::{init, INIT_OGG, Sdl2MixerContext, open_audio, AUDIO_S16LSB, allocate_channels,
-                  Chunk, Channel, EffectCallback, Music};
+                  Chunk, Channel, EffectCallback, Music, MAX_VOLUME};
 use ::sdl_err;
 
 use errors::*;
@@ -70,6 +70,7 @@ impl<'a> AudioMixer<'a> {
 
         let music = Music::from_file(Path::new(music_filename)).map_err(sdl_err)
             .chain_err(|| "failed to load background music")?;
+        Music::set_volume(MAX_VOLUME / 2);
 
         if std::env::var("NO_MUSIC").is_err() {
             music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
@@ -151,13 +152,13 @@ impl HitSound {
     }
 }
 
-impl Sound<NoEffect> for HitSound {
-    type PlayArgs = ();
+impl Sound<VolumeEffect> for HitSound {
+    type PlayArgs = (f32,);
 
-    fn play(&self, _args: ()) -> AudioTape<NoEffect> {
+    fn play(&self, args: (f32,)) -> AudioTape<VolumeEffect> {
         AudioTape {
             clip: &self.clip,
-            filter: NoEffect {},
+            filter: VolumeEffect { vol: args.0 },
         }
     }
 }

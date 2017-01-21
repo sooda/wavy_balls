@@ -319,7 +319,7 @@ impl World {
                         for z in 0..self.heightfield_depth {
                             self.heightfield[(x + z * self.heightfield_width) as usize] =
                                 (((x as f32) / self.heightfield_width as f32 * 20.0) +
-                                 self.accum_dt * 0.0)
+                                 self.accum_dt * 0.25)
                                     .sin() * 5.0;
                         }
                     }

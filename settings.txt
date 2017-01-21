@@ -3,6 +3,8 @@
 display_width 800
 display_height 600
 
+volume_scale 0.01
+
 player 0.0 3.0 0.0
 spinthing 0.0 -13.0 -6.0
 liftgear 15.0 -15.0 -8.0
