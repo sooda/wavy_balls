@@ -422,7 +422,7 @@ fn run() -> Result<()> {
     ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE)
         .chain_err(|| "failed to add inotify watch")?;
 
-    let mixer = Rc::new(AudioMixer::new("foldplop_-_memory_song_part_2.ogg")
+    let mixer = Rc::new(AudioMixer::new("duunimusa2.ogg")
         .chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
