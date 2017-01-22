@@ -300,9 +300,6 @@ fn run() -> Result<()> {
     let eh_texture = Rc::new(
         texture::load_texture(&display, "eh.png")
         .chain_err(|| "failed to load ball texture")?);
-    let spin_texture = Rc::new(
-        texture::load_texture(&display, "ruohe.png")
-        .chain_err(|| "failed to load spin texture")?);
     let diam_texture = Rc::new(
         texture::load_texture(&display, "diamond.png")
         .chain_err(|| "failed to load diamond texture")?);
@@ -397,56 +394,6 @@ fn run() -> Result<()> {
         }
     }
 
-
-    let spin_mesh = mesh::Mesh::from_obj(&display, "spinthing.obj", false)
-        .chain_err(|| "failed to load spinthing mesh for draw")?;
-    let spin_shape = Rc::new(
-        body::BodyShape::from_obj("spinthing.obj")
-        .chain_err(|| "failed to load spinthing mesh for phys")?);
-
-    let spinthing = world.borrow_mut().add_body(Rc::new(RefCell::new(spin_mesh)),
-                                                spin_texture.clone(),
-                                                spin_shape,
-                                                body::BodyConfig {
-                                                    category_bits: body::BODY_CATEGORY_GEAR_BIT,
-                                                    collide_bits: body::BODY_COLLIDE_GEAR,
-                                                    ..Default::default()
-                                                });
-    spinthing.borrow_mut().set_position(settings.get_vec3("spinthing"));
-
-    // this spins around y axis, i.e., on the ground
-    let mut testgear = Gear::new(world.borrow_mut().ode_world(),
-                                 spinthing.clone(),
-                                 dJointTypeHinge);
-    testgear.set_hinge_axis(Vec3::new(0.0, 1.0, 0.0));
-    testgear.set_hinge_param(dParamFMax, 1000.0);
-    testgear.set_hinge_param(dParamVel, 1.0);
-
-    let mesh = mesh::Mesh::from_obj(&display, "gear.obj", false)
-        .chain_err(|| "failed to load gear mesh for draw")?;
-    let shape = Rc::new(
-        body::BodyShape::from_obj("gear.obj")
-        .chain_err(|| "failed to load gear mesh for phys")?);
-
-
-    let body = world.borrow_mut().add_body(Rc::new(RefCell::new(mesh)),
-                                           spin_texture.clone(),
-                                           shape,
-                                           body::BodyConfig {
-                                               category_bits: body::BODY_CATEGORY_GEAR_BIT,
-                                               collide_bits: body::BODY_COLLIDE_GEAR,
-                                               ..Default::default()
-                                           });
-
-    body.borrow_mut().set_position(settings.get_vec3("liftgear"));
-    // this spins around x axis, i.e., lifts things up
-    let mut liftgear = Gear::new(world.borrow_mut().ode_world(),
-                                 body.clone(),
-                                 dJointTypeHinge);
-    liftgear.set_hinge_axis(Vec3::new(1.0, 0.0, 0.0));
-    liftgear.set_hinge_param(dParamFMax, 1000.0);
-    liftgear.set_hinge_param(dParamVel, -1.0);
-
     let envmap = texture::load_texture_array(
         &display, &[
             "cubemap/negx.jpg",
@@ -483,10 +430,14 @@ fn run() -> Result<()> {
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
     let diamond_sounds = vec![
-        Rc::new(SimpleSound::new("sounds/elektro.wav")
-                .chain_err(|| "failed to load elektro sound")?),
+        Rc::new(SimpleSound::new("sounds/pickupbeep.wav")
+                .chain_err(|| "failed to load pickupbeep sound")?),
         Rc::new(SimpleSound::new("sounds/powerup1.wav")
                 .chain_err(|| "failed to load powerup1 sound")?),
+        Rc::new(SimpleSound::new("sounds/powerup2.wav")
+                .chain_err(|| "failed to load powerup2 sound")?),
+        Rc::new(SimpleSound::new("sounds/powerup3.wav")
+                .chain_err(|| "failed to load powerup3 sound")?),
     ];
     let end_sound = Rc::new(SimpleSound::new("sounds/game_over.wav")
                 .chain_err(|| "failed to load gameover sound")?);

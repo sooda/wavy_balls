@@ -135,7 +135,7 @@ pub struct JumpSound {
 
 impl JumpSound {
     pub fn new() -> Result<Self> {
-        Ok(JumpSound { clip: SoundClip::new("146718__fins__button.wav")? })
+        Ok(JumpSound { clip: SoundClip::new("sounds/elektro.wav")? })
     }
 }
 
@@ -156,7 +156,7 @@ pub struct HitSound {
 
 impl HitSound {
     pub fn new() -> Result<Self> {
-        Ok(HitSound { clip: SoundClip::new("114181__edgardedition__thud11.wav")? })
+        Ok(HitSound { clip: SoundClip::new("sounds/bump.wav")? })
     }
 }
 
