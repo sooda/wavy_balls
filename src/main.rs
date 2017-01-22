@@ -707,7 +707,7 @@ fn run() -> Result<()> {
             }
             w.del_body(body_id);
             diamonds.borrow_mut().retain(|&x| x != body_id);
-            if diamonds.borrow().is_empty() {
+            if diams_got == diams_tot {
                 endtime = sdl_timer.ticks();
                 let idx = if endtime % 1000 > 500 { 1 } else { 0 }; // random, lol
                 mixer.play(&*win_sounds[idx], ()).chain_err(|| "failed to play win sound")?;
