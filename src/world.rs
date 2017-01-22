@@ -296,7 +296,6 @@ impl World {
             ode::dGeomSetBody(geom, ode_body);
             ode::dBodySetData(ode_body, self.body_id_counter as *mut std::os::raw::c_void);
             ode::dBodySetKinematic(ode_body);
-            self.body_id_counter += 1;
             // ode::dGeomSetBody(geom, std::ptr::null_mut());
             ode::dGeomSetPosition(geom, 0.0, 0.0, 0.0);
             ode::dBodySetPosition(ode_body, 0.0, 0.0, 0.0);
@@ -315,6 +314,7 @@ impl World {
                 collide_sound: None,
                 shaded: true,
             }));
+            self.body_id_counter += 1;
             self.bodies.push(body.clone());
             body
         }
