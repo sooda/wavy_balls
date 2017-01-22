@@ -377,7 +377,6 @@ fn run() -> Result<()> {
                 let p = Vec3::new((px + 0.5 * scale) - scale * 0.5 * (width - 1) as f32,
                                   r * 32.0 * scale + 1.5,
                                   (pz + 0.5 * scale) - scale * 0.5 * (depth - 1) as f32);
-                println!("{:?}", p);
                 if g > 0.5 || b > 0.5 {
                     let diamond = if g > 0.5 {
                         world.borrow_mut().add_body(
@@ -586,15 +585,6 @@ fn run() -> Result<()> {
             };
         world.borrow_mut().add_contact_handler(Box::new(diamond_collision_handler));
     }
-
-    let body = world.borrow_mut().add_body(
-        Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "powerup0.obj", false)
-                             .chain_err(|| "failed to load powerup mesh")?)),
-                             pup0_texture.clone(),
-                             diam_shape.clone(),
-                             body::BodyConfig { collide_sound: Some(1), ..Default::default() });
-    body.borrow_mut().set_position(settings.get_vec3("pup0"));
-    diamonds.borrow_mut().push(body.borrow().id);
 
     let mut allow_jump = true;
 
