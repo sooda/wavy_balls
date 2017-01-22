@@ -353,20 +353,22 @@ impl World {
                     );
                 
                 
-                for xx in -5..6 {
-                for zz in -5..6 {
-
-                let xcoord = (offset.x / self.heightfield_scale).floor() as i32 + xx;
-                let zcoord = (offset.z / self.heightfield_scale).floor() as i32 + zz;
-                let p = xcoord + zcoord * self.heightfield_resolution.0 as i32 + 5;
-                if p >= 0 && (p as usize) < self.heightfield.len() {
-                    self.heightfield_velocity[p as usize] += 10.0 / (1.0+(xx*xx+zz*zz) as f32);
-                }
-                }
+                for xx in -10..11 {
+                    for zz in -10..11 {
+                        let xcoord = (offset.x / self.heightfield_scale).floor() as i32 + xx;
+                        let zcoord = (offset.z / self.heightfield_scale).floor() as i32 + zz;
+                        let p = xcoord + zcoord * self.heightfield_resolution.0 as i32;
+                        if p >= 0 && (p as usize) < self.heightfield.len() {
+                            self.heightfield_velocity[p as usize] -= 0.5 * 1.0 / (1.0+(xx*xx+zz*zz) as f32);
+                        }
+                    }
                 }
             }
+            
+            const WAVE_DT: f32 = 0.2;
+
             for v in self.heightfield_velocity.iter_mut() {
-                *v *= 0.9999;
+                *v *= 0.999;
             }
 
             for x in 0..self.heightfield_resolution.0 {
@@ -376,20 +378,20 @@ impl World {
                 let i = (x as usize + z as usize * stride) as usize;
                 
                 let neighs = 0.0
-                    + if x > 0 { self.heightfield[i-1] } else { 0.0 }
-                    + if z > 0 { self.heightfield[i-stride] } else { 0.0 }
-                    + if x+1 < self.heightfield_resolution.0 { self.heightfield[i+1] } else { 0.0 }
-                    + if z+1 < self.heightfield_resolution.1 { self.heightfield[i+stride] } else { 0.0 };
+                    + if x > 0 { self.heightfield[i-1] - self.heightfield_origin[i-1] } else { 0.0 }
+                    + if z > 0 { self.heightfield[i-stride]  - self.heightfield_origin[i-stride]} else { 0.0 }
+                    + if x+1 < self.heightfield_resolution.0 { self.heightfield[i+1] - self.heightfield_origin[i+1] } else { 0.0 }
+                    + if z+1 < self.heightfield_resolution.1 { self.heightfield[i+stride]  - self.heightfield_origin[i+stride]} else { 0.0 };
 
-                self.heightfield_velocity[i] -= (self.heightfield[i] - neighs/4.0) * PHYS_DT;
+                self.heightfield_velocity[i] += (neighs/4.0 - (self.heightfield[i]-self.heightfield_origin[i])) * WAVE_DT;
             }
             }
 
             for ((x, o), v) in self.heightfield.iter_mut().zip(self.heightfield_origin.iter()).zip(self.heightfield_velocity.iter_mut()) {
-                *v += (*o - *x) * PHYS_DT;
+                *v += (*o - *x) * WAVE_DT * 0.01;
             }
             for (x, v) in self.heightfield.iter_mut().zip(self.heightfield_velocity.iter()) {
-                *x += *v * PHYS_DT;
+                *x += *v * WAVE_DT;
             }
             //for x in 0..self.heightfield_resolution.0 {
             //    for z in 0..self.heightfield_resolution.1 {
