@@ -371,9 +371,9 @@ fn run() -> Result<()> {
                 let pz = z as f32 * scale;
 
                 if g > 0.5 {
-                    let p = Vec3::new((px + 0.5 * scale) - scale * 0.5 * width as f32,
-                                      r * 8.0 * scale + 1.5,
-                                      (pz + 0.5 * scale) - scale * 0.5 * depth as f32);
+                    let p = Vec3::new((px + 0.5 * scale) - scale * 0.5 * (width - 1) as f32,
+                                      r * 32.0 * scale + 1.5,
+                                      (pz + 0.5 * scale) - scale * 0.5 * (depth - 1) as f32);
                     println!("{:?}", p);
                     let diamond = world.borrow_mut().add_body(diam_mesh.clone(),
                                                               diam_texture.clone(),
