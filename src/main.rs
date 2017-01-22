@@ -207,8 +207,15 @@ fn sdl_err(r: String) -> Error {
     Error::from_kind(ErrorKind::SdlError(r))
 }
 
+enum State {
+    Menu(usize),
+    Game
+}
+
 fn run() -> Result<()> {
     use glium_sdl2::DisplayBuild;
+
+    let mut gstate = State::Menu(0);
 
     unsafe {
         ode::dInitODE();
@@ -472,7 +479,7 @@ fn run() -> Result<()> {
         .chain_err(|| "failed to add inotify watch")?;
 
     let mixer =
-        Rc::new(AudioMixer::new("duunimusa2.ogg").chain_err(|| "failed to initialize audio")?);
+        Rc::new(AudioMixer::new("duunimusa2.ogg", "menu2.ogg").chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
     let diamond_sounds = vec![
@@ -615,17 +622,24 @@ fn run() -> Result<()> {
         last_t = sdl_timer.ticks();
         let curr_t = last_t as f32 / 1000.0;
 
-        let mut force_x = 0.0;
-        let mut force_y = 0.0;
-        let mut force_z = 0.0;
-
-        let force_mag = if last_t >= force_mag_end { 10.0 } else { 31.4 };
-
         let input = input_state.process_input(&mut event_pump);
 
         if input.quit {
             break 'mainloop;
         }
+
+        let mut target = display.draw();
+
+        target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
+
+        gstate = match gstate {
+        State::Game => {
+
+        let mut force_x = 0.0;
+        let mut force_y = 0.0;
+        let mut force_z = 0.0;
+
+        let force_mag = if last_t >= force_mag_end { 10.0 } else { 31.4 };
 
         if input.jump && allow_jump && *on_ground.borrow() {
             force_y = 3.14 * GRAVITY * force_mag;
@@ -714,10 +728,6 @@ fn run() -> Result<()> {
             }
         }
         del_diamonds.borrow_mut().clear();
-
-        let mut target = display.draw();
-
-        target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
         let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
                          Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
@@ -879,6 +889,49 @@ fn run() -> Result<()> {
                              playtime));
 
         nanovg.end_frame();
+
+        State::Game
+
+        },
+        State::Menu(sel) => {
+            nanovg.begin_frame(800, 600, 1.0);
+
+            nanovg.begin_path();
+            nanovg.move_to(10.0, [25.0, 75.0][sel]);
+            nanovg.line_to(10.0, [60.0, 110.0][sel]);
+            nanovg.line_to(200.0, [60.0, 110.0][sel]);
+            nanovg.line_to(200.0, [25.0, 75.0][sel]);
+            nanovg.fill_color(nanovg::Color::rgba(255, 0, 0, 128));
+            nanovg.fill();
+
+            nanovg.font_size(32.0);
+            nanovg.font_face("main");
+            nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
+            nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
+            nanovg.text(20.0,
+                    50.0,
+                    "Play");
+
+            nanovg.text(20.0,
+                    100.0,
+                    "Quit");
+
+            nanovg.end_frame();
+
+            if input.player.y < 0.0 {
+                State::Menu(0)
+            } else if input.player.y > 0.0 {
+                State::Menu(1)
+            } else if input.jump && sel == 0 {
+                mixer.play_music()?;
+                State::Game
+            } else if input.jump && sel == 1 {
+                break 'mainloop;
+            } else {
+                State::Menu(sel)
+            }
+        }
+        };
 
         {
             use glium::backend::Facade;

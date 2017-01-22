@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 use std::path::Path;
-use std;
 
 use sdl2::mixer::{init, INIT_OGG, Sdl2MixerContext, open_audio, AUDIO_S16LSB, allocate_channels,
                   Chunk, Channel, EffectCallback, Music, MAX_VOLUME};
@@ -51,6 +50,7 @@ pub struct AudioMixer<'a> {
     phantom_clip: PhantomData<&'a SoundClip>,
     _sdl_mixer: Sdl2MixerContext,
     _music: Music,
+    _menu: Music,
 }
 
 pub trait Sound<F: StereoFilter> {
@@ -60,7 +60,7 @@ pub trait Sound<F: StereoFilter> {
 }
 
 impl<'a> AudioMixer<'a> {
-    pub fn new(music_filename: &str) -> Result<Self> {
+    pub fn new(music_filename: &str, menu_music: &str) -> Result<Self> {
         let sdl_mixer = init(INIT_OGG).map_err(sdl_err)
             .chain_err(|| "failed to initialize SDL mixer")?;
 
@@ -72,15 +72,24 @@ impl<'a> AudioMixer<'a> {
             .chain_err(|| "failed to load background music")?;
         Music::set_volume(MAX_VOLUME / 2);
 
-        if std::env::var("NO_MUSIC").is_err() {
-            music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")?;
-        }
+        let menu = Music::from_file(Path::new(menu_music)).map_err(sdl_err)
+            .chain_err(|| "failed to load background music")?;
+        Music::set_volume(MAX_VOLUME / 2);
+
+        menu.play(-1).map_err(sdl_err).chain_err(|| "failed to play menu music")?;
 
         Ok(AudioMixer {
             phantom_clip: PhantomData,
             _sdl_mixer: sdl_mixer,
             _music: music,
+            _menu: menu,
         })
+    }
+
+    pub fn play_music(&self) -> Result<()> {
+        use sdl2;
+        sdl2::mixer::Music::halt();
+        self._music.play(-1).map_err(sdl_err).chain_err(|| "failed to play background music")
     }
 
     pub fn play<F: StereoFilter, S: Sound<F>>(&self, sound: &S, args: S::PlayArgs) -> Result<()> {
