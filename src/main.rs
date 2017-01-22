@@ -693,7 +693,6 @@ fn run() -> Result<()> {
 
                 // Step the world
                 let player_position = player.borrow_mut().get_position();
-                println!("{:?}", player_position);
                 if player_position.y < -300.0 && endtime == 0 {
                     endtime = sdl_timer.ticks();
                     mixer.play(&*end_sound, ()).chain_err(|| "failed to play end sound")?;
