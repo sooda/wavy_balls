@@ -470,6 +470,14 @@ fn run() -> Result<()> {
         Rc::new(SimpleSound::new("sounds/powerup1.wav")
                 .chain_err(|| "failed to load powerup1 sound")?),
     ];
+    let end_sound = Rc::new(SimpleSound::new("sounds/game_over.wav")
+                .chain_err(|| "failed to load gameover sound")?);
+    let win_sounds = vec![
+        Rc::new(SimpleSound::new("sounds/great.wav")
+                .chain_err(|| "failed to load great sound")?),
+        Rc::new(SimpleSound::new("sounds/unbelievable.wav")
+                .chain_err(|| "failed to load unbelievable sound")?),
+    ];
     let on_ground = Rc::new(RefCell::new(false));
     {
         let plr_id = player.borrow_mut().id;
@@ -496,7 +504,6 @@ fn run() -> Result<()> {
                     let volume = (vol_scale * coincide_vel * coincide_vel).min(1.0);
                     // TODO: multiple different sounds for even more dramatic collisions
                     if volume > 0.01 {
-                        println!("vol {}", vol_scale * coincide_vel * coincide_vel);
                         // bleh, can't ".chain_err(foo)?" this result in a handler
                         mixer.play(&*hit_sound, (volume,)).expect("failed to play hit sound");
 
@@ -575,6 +582,8 @@ fn run() -> Result<()> {
 
     let force_mag_duration = 10 * 1000;
     let mut force_mag_end = sdl_timer.ticks();
+    
+    let mut endtime = 0;
 
     'mainloop: loop {
         let evs = ino.available_events().unwrap();
@@ -655,6 +664,11 @@ fn run() -> Result<()> {
 
         // Step the world
         let player_position = player.borrow_mut().get_position();
+        println!("{:?}", player_position);
+        if player_position.y < -300.0 && endtime == 0 {
+            endtime = sdl_timer.ticks();
+            mixer.play(&*end_sound, ()).chain_err(|| "failed to play end sound")?;
+        }
         *on_ground.borrow_mut() = false;
         world.borrow_mut().step(dt,
                                 player_position,
@@ -682,6 +696,11 @@ fn run() -> Result<()> {
             }
             w.del_body(body_id);
             diamonds.borrow_mut().retain(|&x| x != body_id);
+            if diamonds.borrow().is_empty() {
+                endtime = sdl_timer.ticks();
+                let idx = if endtime % 1000 > 500 { 1 } else { 0 }; // random, lol
+                mixer.play(&*win_sounds[idx], ()).chain_err(|| "failed to play win sound")?;
+            }
         }
         del_diamonds.borrow_mut().clear();
 
@@ -836,7 +855,7 @@ fn run() -> Result<()> {
         nanovg.font_face("main");
         nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
         nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
-        let playtime = sdl_timer.ticks() as f32 / 1000.0;
+        let playtime = if endtime == 0 { sdl_timer.ticks() } else { endtime } as f32 / 1000.0;
         nanovg.text(20.0,
                     90.0,
                     &format!("diamonds {}/{} time {:.2} s",
