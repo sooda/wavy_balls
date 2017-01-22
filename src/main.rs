@@ -294,21 +294,6 @@ fn run() -> Result<()> {
         // do not move this. this installs a self pointer to a C callback that shouldn't change
         world.borrow_mut().setup_heightfield(&display, &level_map, landscape_texture);
     }
-    // let landscape =
-    // world.borrow_mut().add_body(world_mesh.clone(),
-    // landscape_texture,
-    // world_shape,
-    // body::BodyConfig { fixed: true, ..Default::default() });
-    // landscape.borrow_mut().set_position(Vec3::new(0.0, 0.0, 0.0));
-    //
-    for i in 0..10i32 {
-        let ball = world.borrow_mut().add_body(
-            Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "ballo.obj", false)
-                    .chain_err(|| "failed to load ball mesh")?)),
-                    eh_texture.clone(),
-                    Rc::new(body::BodyShape::Sphere{radius: 1.0}), body::BodyConfig::default());
-        ball.borrow_mut().set_position(Vec3::new(3.0, 3.0 + 3.0 * (i as f32), 0.0));
-    }
 
     let diamonds = Rc::new(RefCell::new(Vec::new()));
     let mut diams_tot = 0;

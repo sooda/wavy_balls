@@ -69,14 +69,15 @@ unsafe extern "C" fn near_callback(user_data: *mut std::os::raw::c_void,
         contact.surface.mu = 50.0;
 
         // rolling friction
-        contact.surface.rho = 0.1;
+        // contact.surface.rho = 0.1;
 
         // rolling friction (spin direction, beyblade prevention)
-        contact.surface.rhoN = 8000.0;
+        // contact.surface.rhoN = 8000.0;
 
         // contact.surface.bounce = 0.0;
         // contact.surface.mode |= ode::dContactBounce as i32;
-        contact.surface.mode |= ode::dContactRolling as i32;
+
+        // contact.surface.mode |= ode::dContactRolling as i32;
 
         let mut ignore_collision = false;
         // NOTE: handler if skipped if some geoms have no associated body
@@ -246,7 +247,7 @@ impl World {
         // create mesh based on texture
 
         let (mesh, reso, hfield, idx) = Mesh::from_texture(f, texture, self.heightfield_scale);
-        let mut mesh = mesh.expect("mesh load fail");
+        let mesh = mesh.expect("mesh load fail");
 
         self.heightfield_idx = idx;
 
@@ -260,12 +261,8 @@ impl World {
 
         let scale = 1.0; // "vertical height scale multiplier"
         let offset = 0.0f64; // vetical height offset
-        let thickness = 0.5;
+        let thickness = 0.1;
         let wrap = false as i32; // whether to wrap the heightfield infinitely
-
-        if false {
-            mesh.update_mesh(|_a, _b| {});
-        }
 
         unsafe {
             ode::dGeomHeightfieldDataBuildCallback(heightfield_data,
@@ -283,8 +280,8 @@ impl World {
                                                    thickness,
                                                    wrap);
             ode::dGeomHeightfieldDataSetBounds(heightfield_data,
-                                               -500.0, // min height
-                                               500.0 /* max height */);
+                                               -5000.0, // min height
+                                               5000.0 /* max height */);
         };
 
         let geom =

@@ -141,8 +141,8 @@ impl Mesh {
 
         // offset the mesh
         for vec in positions.iter_mut() {
-            vec.x -= scale * 0.5 * width as f32;
-            vec.z -= scale * 0.5 * depth as f32;
+            vec.x -= scale * 0.5 * (width - 1) as f32;
+            vec.z -= scale * 0.5 * (depth - 1) as f32;
         }
 
         (Mesh::new(f, positions, normals, texture_coordinates, retain),
