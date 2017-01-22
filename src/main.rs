@@ -402,7 +402,15 @@ fn run() -> Result<()> {
     liftgear.set_hinge_param(dParamFMax, 1000.0);
     liftgear.set_hinge_param(dParamVel, -1.0);
 
-    let envmap = texture::load_texture(&display, "cubemap.jpg")
+    let envmap = texture::load_texture_array(
+        &display, &[
+            "cubemap/negx.jpg",
+            "cubemap/posx.jpg",
+            "cubemap/negy.jpg",
+            "cubemap/posy.jpg",
+            "cubemap/negz.jpg",
+            "cubemap/posz.jpg",
+        ])
         .chain_err(|| "failed to load environment map")?;
 
     let cube = mesh::Mesh::for_cubemap(&display).unwrap();
@@ -727,7 +735,7 @@ fn run() -> Result<()> {
                     modelview: *cam_rotate.as_ref(),
                     tex: &envmap
                   },
-                  &program,
+                  &program_array,
                   false,
                   false)
             .chain_err(|| "failed to draw cubemap")?;
