@@ -495,7 +495,7 @@ fn run() -> Result<()> {
         .chain_err(|| "failed to add inotify watch")?;
 
     let mixer =
-        Rc::new(AudioMixer::new("duunimusa2.ogg", "menu2.ogg").chain_err(|| "failed to initialize audio")?);
+        Rc::new(AudioMixer::new("duunimusa3.ogg", "menu2.ogg").chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
     let diamond_sounds = vec![
