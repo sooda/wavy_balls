@@ -91,6 +91,7 @@ pub struct Body {
     pub ode_geom: ode::dGeomID,
     pub id: u64,
     pub collide_sound: Option<usize>, // used for collectable diamonds and powerups
+    pub shaded: bool,
 }
 
 impl std::cmp::PartialEq for Body {

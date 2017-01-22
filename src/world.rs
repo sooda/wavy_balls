@@ -233,6 +233,7 @@ impl World {
             ode_geom: ode_geom,
             id: self.body_id_counter,
             collide_sound: config.collide_sound,
+            shaded: false,
         }));
         self.bodies.push(body.clone());
         self.body_id_counter += 1;
@@ -310,6 +311,7 @@ impl World {
                 ode_geom: geom,
                 id: self.body_id_counter,
                 collide_sound: None,
+                shaded: true,
             }));
             self.bodies.push(body.clone());
         }
@@ -431,7 +433,11 @@ impl World {
 
         // deform mesh based on heightfield
 
-        let &mut World { ref mut landscape_mesh, ref heightfield, ref heightfield_idx, .. } = self;
+        let &mut World { ref mut landscape_mesh,
+                         ref heightfield,
+                         ref heightfield_idx,
+                         ref heightfield_resolution,
+                         .. } = self;
         let mut mesh = landscape_mesh.as_mut().unwrap().borrow_mut();
 
         mesh.update_mesh(|orig_verts, new_verts| {
@@ -439,7 +445,38 @@ impl World {
                 .zip(new_verts.iter_mut())
                 .enumerate() {
 
-                gpu_vert.position[1] = heightfield[heightfield_idx[index]];
+                use na::Norm;
+
+                let hi = heightfield_idx[index];
+
+                let xi = heightfield_idx[index] % heightfield_resolution.0 as usize;
+                let zi = heightfield_idx[index] / heightfield_resolution.0 as usize;
+                let h = heightfield[hi];
+
+                let xm = if xi > 0 { heightfield[hi - 1] } else { 0.0 };
+                let xp = if xi + 1 < heightfield_resolution.0 as usize {
+                    heightfield[hi + 1]
+                } else {
+                    0.0
+                };
+                let zm = if zi > 0 {
+                    heightfield[hi - heightfield_resolution.0 as usize]
+                } else {
+                    0.0
+                };
+                let zp = if zi + 1 < heightfield_resolution.1 as usize {
+                    heightfield[hi + heightfield_resolution.0 as usize]
+                } else {
+                    0.0
+                };
+
+                let normal = Vec3::new((xm - h) + (h - xp), 1.0, (zm - h) + (h - zp));
+                let normal = normal.normalize();
+                gpu_vert.position[1] = heightfield[hi];
+                gpu_vert.normal[0] = normal.x;
+                gpu_vert.normal[1] = normal.y;
+                gpu_vert.normal[2] = normal.z;
+
             }
         });
         // for (orig_vert, gpu_vert) in orig_verts.iter().zip(new_verts.iter_mut()) {

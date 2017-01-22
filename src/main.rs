@@ -73,6 +73,7 @@ static VERTEX_SHADER: &'static str = r#"
 
     uniform mat4 perspective;
     uniform mat4 modelview;
+    uniform float max_shadow;
 
     in vec3 position;
     in vec3 normal;
@@ -80,12 +81,14 @@ static VERTEX_SHADER: &'static str = r#"
 
     out vec3 f_tex_coord;
     out vec3 f_position;
+    out vec3 f_normal;
 
     void main() {
         gl_Position = perspective * modelview * vec4(position, 1.0);
 
         f_tex_coord = tex_coord;
         f_position = position;
+        f_normal = normal;
     }
 "#;
 
@@ -94,14 +97,18 @@ static FRAGMENT_SHADER: &'static str = r#"
 
     in vec3 f_tex_coord;
     in vec3 f_position;
+    in vec3 f_normal;
 
     uniform sampler2D tex;
     uniform vec3 player_pos;
+    uniform float max_shadow;
 
     void main() {
         vec4 color = texture(tex, f_tex_coord.xy);
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color.rgb = color.rgb * 0.4;
+
+        color.rgb *= max(1.0-max_shadow, dot(f_normal, vec3(0,1,0)));
         gl_FragColor = color;
     }
 "#;
@@ -115,6 +122,7 @@ static FRAGMENT_SHADER_ARRAY: &'static str = r#"
 
     uniform sampler2DArray tex;
     uniform vec3 player_pos;
+    uniform float max_shadow;
 
     void main() {
         vec4 color = texture(tex, f_tex_coord);
@@ -748,30 +756,6 @@ fn run() -> Result<()> {
         }*/
 
         let player_pos = player.borrow_mut().get_position();
-        {
-            // TODO: tää koodi lähtee menee t: Jontte , pelkkää debuggii vaa
-            /*use glium::draw_parameters::DepthTest;
-            let mut params: glium::draw_parameters::DrawParameters = Default::default();
-            params.depth = glium::Depth {
-                test: DepthTest::IfLess,
-                write: true,
-                ..Default::default()
-            };
-            {
-                let stride = MAP_RES as f32 / MAP_SZ;
-                let offset = Vec3::new((player_position.x / stride).floor() * stride,
-                                       0.0, // (player_position.y / stride).floor() * stride,
-                                       (player_position.z / stride).floor() * stride);
-                let modelview = cam_view * Iso3::new(offset, na::zero()).to_homogeneous();
-                target.draw(&hm_buf,
-                      &glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList),
-                      &hm_prog,
-                      &uniform! { perspective: *projection.as_ref(), modelview: *modelview.as_ref(),
-                            player_pos: *player_pos.as_ref(), texs: &hm_texture },
-                        &params)
-                .chain_err(|| "failed to draw cyndis on hönö")?;
-            }*/
-        }
 
         for body in world.borrow().bodies() {
             let model = body.borrow_mut().get_posrot_homogeneous();
@@ -780,7 +764,7 @@ fn run() -> Result<()> {
             // let body::Body { ref mesh, ref texture, .. } = *body.borrow_mut();
             let b = body.borrow_mut();
             // i have no idea what i'm doing. this can't be right. thanks, compiler
-            if let (&Some(ref mesh), &Some(ref texture)) = (&b.mesh, &b.texture) {
+            if let (&Some(ref mesh), &Some(ref texture), shaded) = (&b.mesh, &b.texture, b.shaded) {
 
                 let ref texture = **texture;
 
@@ -796,6 +780,7 @@ fn run() -> Result<()> {
                       modelview: *modelview.as_ref(),
                       tex: &*texture,
                       player_pos: *player_pos.as_ref(),
+                      max_shadow: if shaded { 0.5f32 } else { 0.0f32},
                   },
                       prog,
                       true,
