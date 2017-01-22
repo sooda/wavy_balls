@@ -255,7 +255,8 @@ fn run() -> Result<()> {
 
     let mut last_t = sdl_timer.ticks();
 
-    let world = Rc::new(RefCell::new(world::World::new()));
+    let scale = 1.0;
+    let world = Rc::new(RefCell::new(world::World::new(scale)));
     let eh_texture = Rc::new(
         texture::load_texture(&display, "eh.png")
         .chain_err(|| "failed to load ball texture")?);
@@ -285,7 +286,7 @@ fn run() -> Result<()> {
     player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
 
-    let level_map = texture::load_image("level1.png").chain_err(|| "failed to load level")?;
+    let level_map = texture::load_image("level2.png").chain_err(|| "failed to load level")?;
     {
         let landscape_texture = Rc::new(
         texture::load_texture(&display, "ruohe.png")
@@ -321,7 +322,6 @@ fn run() -> Result<()> {
     let mut diamgears = Vec::new();
     {
         let (width, depth) = (level_map.width as i32, level_map.height as i32);
-        let scale = 0.5;
 
         for x in 0..width {
             for z in 0..depth {

@@ -75,7 +75,7 @@ impl Mesh {
     pub fn from_texture<F: Facade>(f: &F,
                                    texture: &glium::texture::RawImage2d<'static, u8>,
                                    scale: f32)
-                                   -> (Result<Mesh>, (i32, i32), Vec<f32>) {
+                                   -> (Result<Mesh>, (i32, i32), Vec<f32>, Vec<usize>) {
         let retain = true;
         let (width, depth) = (texture.width as i32, texture.height as i32);
         let mut heightfield = Vec::new();
@@ -83,6 +83,7 @@ impl Mesh {
         let mut positions = Vec::new();
         let mut normals = Vec::new();
         let mut texture_coordinates = Vec::new();
+        let mut idx = Vec::new();
 
         // read texture to heightfield
         for x in 0..width {
@@ -109,26 +110,32 @@ impl Mesh {
                 positions.push(Pnt3::new(px, heightfield[hmp] as f32, pz));
                 normals.push(Vec3::new(0.0, 0.0, 0.0));
                 texture_coordinates.push(Pnt3::new(tx, tz, 0.0));
+                idx.push(hmp);
 
                 positions.push(Pnt3::new(px + s, heightfield[hmp + 1] as f32, pz));
                 normals.push(Vec3::new(0.0, 0.0, 0.0));
                 texture_coordinates.push(Pnt3::new(tx + ts, tz, 0.0));
+                idx.push(hmp + 1);
 
                 positions.push(Pnt3::new(px, heightfield[hmp + width as usize] as f32, pz + s));
                 normals.push(Vec3::new(0.0, 0.0, 0.0));
                 texture_coordinates.push(Pnt3::new(tx, tz + ts, 0.0));
+                idx.push(hmp + width as usize);
 
                 positions.push(Pnt3::new(px + s, heightfield[hmp + 1] as f32, pz));
                 normals.push(Vec3::new(0.0, 0.0, 0.0));
                 texture_coordinates.push(Pnt3::new(tx + ts, tz, 0.0));
+                idx.push(hmp + 1);
 
                 positions.push(Pnt3::new(px + s, heightfield[hmp + width as usize + 1] as f32, pz + s));
                 normals.push(Vec3::new(0.0, 0.0, 0.0));
                 texture_coordinates.push(Pnt3::new(tx + ts, tz + ts, 0.0));
+                idx.push(hmp + width as usize + 1);
 
                 positions.push(Pnt3::new(px, heightfield[hmp + width as usize] as f32, pz + s));
                 normals.push(Vec3::new(0.0, 0.0, 0.0));
                 texture_coordinates.push(Pnt3::new(tx, tz + ts, 0.0));
+                idx.push(hmp + width as usize);
             }
         }
 
@@ -138,7 +145,10 @@ impl Mesh {
             vec.z -= scale * 0.5 * depth as f32;
         }
 
-        (Mesh::new(f, positions, normals, texture_coordinates, retain), (width, depth), heightfield)
+        (Mesh::new(f, positions, normals, texture_coordinates, retain),
+         (width, depth),
+         heightfield,
+         idx)
     }
 
     pub fn for_cubemap<F: Facade>(f: &F) -> Result<Mesh> {
