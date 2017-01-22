@@ -3,6 +3,7 @@ use glium;
 use glium::backend::Facade;
 use mesh::Mesh;
 use ode;
+use na::Norm;
 use std;
 use math::*;
 use std::rc::Rc;
@@ -243,7 +244,8 @@ impl World {
     pub fn setup_heightfield<F: Facade>(&mut self,
                                         f: &F,
                                         texture: &glium::texture::RawImage2d<'static, u8>,
-                                        visible_texture: Rc<texture::Texture>) -> Rc<RefCell<Body>> {
+                                        visible_texture: Rc<texture::Texture>)
+                                        -> Rc<RefCell<Body>> {
 
         // create mesh based on texture
 
@@ -344,11 +346,14 @@ impl World {
             self.leftover_dt -= PHYS_DT;
             self.accum_dt += PHYS_DT;
 
-            if player_action {
+            if player_action || true {
                 // self.heightfield_velocity[p] += 1.0;
+                let player_velocity = self.bodies[0].borrow_mut().get_linear_velocity();
+                let effect_position = player_position - player_velocity.normalize() * 7.0;
+                let amplitude = Vec3::new(player_velocity.x, 0.0, player_velocity.z).norm() / 300.0;
 
                 let offset =
-                    player_position +
+                    effect_position +
                     Vec3::new(self.heightfield_resolution.0 as f32 *
                               self.heightfield_scale as f32 * 0.5,
                               0.0,
@@ -356,14 +361,14 @@ impl World {
                               self.heightfield_scale as f32 * 0.5);
 
 
-                for xx in -10..11 {
-                    for zz in -10..11 {
+                for xx in -5..6 {
+                    for zz in -5..6 {
                         let xcoord = (offset.x / self.heightfield_scale).floor() as i32 + xx;
                         let zcoord = (offset.z / self.heightfield_scale).floor() as i32 + zz;
                         let p = xcoord + zcoord * self.heightfield_resolution.0 as i32;
                         if p >= 0 && (p as usize) < self.heightfield.len() {
-                            self.heightfield_velocity[p as usize] -=
-                                0.5 * 1.0 / (1.0 + (xx * xx + zz * zz) as f32);
+                            self.heightfield_velocity[p as usize] +=
+                                amplitude * 1.0 / (1.0 + (xx * xx + zz * zz) as f32);
                         }
                     }
                 }

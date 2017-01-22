@@ -316,7 +316,6 @@ fn run() -> Result<()> {
                     collide_bits: body::BODY_COLLIDE_PLAYER,
                     ..body::BodyConfig::default() }
         );
-    player.borrow_mut().set_position(settings.get_vec3("player"));
     player.borrow_mut().set_finite_rotation_mode(true);
 
     let level_map = texture::load_image("level2.png").chain_err(|| "failed to load level")?;
@@ -329,6 +328,18 @@ fn run() -> Result<()> {
         let id = body.borrow().id;
         id
     };
+    // set player position to 20, 20 and read height from heightfield
+    // player.borrow_mut().set_position(settings.get_vec3("player"));
+    {
+        let reso = world.borrow_mut()
+            .heightfield_resolution;
+
+        player.borrow_mut()
+            .set_position(Vec3::new(20.0 / scale - reso.0 as f32 * scale / 2.0,
+                                    world.borrow_mut().heightfield[((20.0 / scale) * reso.0 as f32 + 20.0 / scale) as usize] +
+                                    5.0,
+                                    20.0 / scale - reso.1 as f32 * scale / 2.0));
+    }
 
     let diamonds = Rc::new(RefCell::new(Vec::new()));
     let mut diams_tot = 0;
@@ -460,8 +471,8 @@ fn run() -> Result<()> {
     ino.add_watch(Path::new("src"), IN_MODIFY | IN_CREATE | IN_DELETE)
         .chain_err(|| "failed to add inotify watch")?;
 
-    let mixer = Rc::new(AudioMixer::new("duunimusa2.ogg")
-        .chain_err(|| "failed to initialize audio")?);
+    let mixer =
+        Rc::new(AudioMixer::new("duunimusa2.ogg").chain_err(|| "failed to initialize audio")?);
     let jump_sound = JumpSound::new().chain_err(|| "failed to load jump sound")?;
     let hit_sound = Rc::new(HitSound::new().chain_err(|| "failed to load hit sound")?);
     let diamond_sounds = vec![
@@ -582,7 +593,7 @@ fn run() -> Result<()> {
 
     let force_mag_duration = 10 * 1000;
     let mut force_mag_end = sdl_timer.ticks();
-    
+
     let mut endtime = 0;
 
     'mainloop: loop {
@@ -855,7 +866,11 @@ fn run() -> Result<()> {
         nanovg.font_face("main");
         nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
         nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
-        let playtime = if endtime == 0 { sdl_timer.ticks() } else { endtime } as f32 / 1000.0;
+        let playtime = if endtime == 0 {
+            sdl_timer.ticks()
+        } else {
+            endtime
+        } as f32 / 1000.0;
         nanovg.text(20.0,
                     90.0,
                     &format!("diamonds {}/{} time {:.2} s",
