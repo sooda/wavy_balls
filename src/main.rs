@@ -826,10 +826,10 @@ fn run() -> Result<()> {
 
         nanovg.begin_frame(800, 600, 1.0);
         nanovg.begin_path();
-        nanovg.move_to(10.0, 10.0);
+        nanovg.move_to(10.0, 50.0);
         nanovg.line_to(10.0, 100.0);
-        nanovg.line_to(175.0, 100.0);
-        nanovg.line_to(175.0, 10.0);
+        nanovg.line_to(400.0, 100.0);
+        nanovg.line_to(400.0, 50.0);
         nanovg.fill_color(nanovg::Color::rgba(0, 0, 0, 128));
         nanovg.fill();
 
@@ -837,7 +837,8 @@ fn run() -> Result<()> {
         nanovg.font_face("main");
         nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
         nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
-        nanovg.text(20.0, 90.0, &format!("diamonds {}/{}", diams_got, diams_tot));
+        let playtime = sdl_timer.ticks() as f32 / 1000.0;
+        nanovg.text(20.0, 90.0, &format!("diamonds {}/{} time {:.2} s", diams_got, diams_tot, playtime));
 
         nanovg.end_frame();
 
