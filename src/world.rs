@@ -243,7 +243,7 @@ impl World {
     pub fn setup_heightfield<F: Facade>(&mut self,
                                         f: &F,
                                         texture: &glium::texture::RawImage2d<'static, u8>,
-                                        visible_texture: Rc<texture::Texture>) {
+                                        visible_texture: Rc<texture::Texture>) -> Rc<RefCell<Body>> {
 
         // create mesh based on texture
 
@@ -314,6 +314,7 @@ impl World {
                 shaded: true,
             }));
             self.bodies.push(body.clone());
+            body
         }
     }
 

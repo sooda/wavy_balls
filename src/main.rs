@@ -320,13 +320,15 @@ fn run() -> Result<()> {
     player.borrow_mut().set_finite_rotation_mode(true);
 
     let level_map = texture::load_image("level2.png").chain_err(|| "failed to load level")?;
-    {
+    let level_body_id = {
         let landscape_texture = Rc::new(
         texture::load_texture(&display, "ruohe.png")
         .chain_err(|| "failed to load landscape texture")?);
         // do not move this. this installs a self pointer to a C callback that shouldn't change
-        world.borrow_mut().setup_heightfield(&display, &level_map, landscape_texture);
-    }
+        let body = world.borrow_mut().setup_heightfield(&display, &level_map, landscape_texture);
+        let id = body.borrow().id;
+        id
+    };
 
     let diamonds = Rc::new(RefCell::new(Vec::new()));
     let mut diams_tot = 0;
@@ -468,13 +470,16 @@ fn run() -> Result<()> {
         Rc::new(SimpleSound::new("sounds/powerup1.wav")
                 .chain_err(|| "failed to load powerup1 sound")?),
     ];
+    let on_ground = Rc::new(RefCell::new(false));
     {
         let plr_id = player.borrow_mut().id;
+        let ground_id = level_body_id;
         let mixer = mixer.clone();
         let hit_sound = hit_sound.clone();
         let diamonds = diamonds.clone();
         let new_particles = new_particles.clone();
         let vol_scale = settings.get_f32("volume_scale");
+        let on_ground = on_ground.clone();
         let landscape_sound_handler = move |o1: &mut Body,
                                             o2: &mut Body,
                                             contact: &mut ode::dContact| {
@@ -507,6 +512,9 @@ fn run() -> Result<()> {
                             };
                             new_particles.borrow_mut().push(part);
                         }
+                    }
+                    if o1.id == ground_id || o2.id == ground_id {
+                        *on_ground.borrow_mut() = true;
                     }
                 }
             }
@@ -599,7 +607,7 @@ fn run() -> Result<()> {
             break 'mainloop;
         }
 
-        if input.jump && allow_jump {
+        if input.jump && allow_jump && *on_ground.borrow() {
             force_y = 3.14 * GRAVITY * force_mag;
             times_jumped += 1;
             mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
@@ -647,6 +655,7 @@ fn run() -> Result<()> {
 
         // Step the world
         let player_position = player.borrow_mut().get_position();
+        *on_ground.borrow_mut() = false;
         world.borrow_mut().step(dt,
                                 player_position,
                                 input.action,
@@ -654,6 +663,7 @@ fn run() -> Result<()> {
                                  settings.get_f32("heightaction_damp"),
                                  settings.get_f32("heightaction_sin")));
         particles.step(dt);
+
         for &body_id in del_diamonds.borrow().iter() {
             let mut w = world.borrow_mut();
             {
@@ -735,8 +745,10 @@ fn run() -> Result<()> {
             }
         };
 
-        force_x += force_mag * input.player.x;
-        force_z += force_mag * input.player.y;
+        if *on_ground.borrow() {
+            force_x += force_mag * input.player.x;
+            force_z += force_mag * input.player.y;
+        }
 
         // impulse based:
         player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
