@@ -209,7 +209,7 @@ fn sdl_err(r: String) -> Error {
 
 enum State {
     Menu(usize),
-    Game
+    Game,
 }
 
 fn run() -> Result<()> {
@@ -316,7 +316,7 @@ fn run() -> Result<()> {
                 eh_texture.clone(),
                 Rc::new(body::BodyShape::Sphere{radius: 1.0}),
                 body::BodyConfig{
-                    friction: 3.0,
+                    friction: 0.4,
                     density: 0.1,
                     restitution: 0.0,
                     category_bits: body::BODY_CATEGORY_PLAYER_BIT,
@@ -633,217 +633,224 @@ fn run() -> Result<()> {
         target.clear_color_and_depth((0.0, 0.0, 0.0, 1.0), 1.0);
 
         gstate = match gstate {
-        State::Game => {
+            State::Game => {
 
-        let mut force_x = 0.0;
-        let mut force_y = 0.0;
-        let mut force_z = 0.0;
+                let mut force_x = 0.0;
+                let mut force_y = 0.0;
+                let mut force_z = 0.0;
 
-        let force_mag = if last_t >= force_mag_end { 10.0 } else { 31.4 };
-
-        if input.jump && allow_jump && *on_ground.borrow() {
-            force_y = 3.14 * GRAVITY * force_mag;
-            times_jumped += 1;
-            mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
-                .chain_err(|| "failed to play jump sound")?;
-            allow_jump = false;
-        } else if !input.jump {
-            allow_jump = true;
-        }
-
-        if input.reset_camera {
-            camera.yaw = 0.0;
-            camera.pitch = 0.0;
-        }
-
-        if input.stop {
-            player.borrow_mut().set_linear_velocity(na::zero());
-        }
-
-        camera.yaw += input.camera.x / 10.0;
-        camera.pitch += input.camera.y / 10.0;
-        camera.pitch = na::clamp(camera.pitch, -PI / 2.0, PI / 2.0);
-
-        if curr_t - last_particle > 0.15 {
-            last_particle = curr_t;
-
-            particles.add(particle::Particle {
-                position: Pnt3::new(0.0, 0.0, 0.0), // global world coordinate
-                scale: Vec2::new(0.4, 0.4),
-                velocity: Vec3::new(rand::random::<f32>() * 0.5,
-                                    2.5,
-                                    rand::random::<f32>() * 0.5),
-                color: Vec4::new(0.0, 0.0, 1.0, 0.8),
-                lifetime: Some(5.0),
-                alive: 0.0,
-                texture: 0,
-            });
-        }
-
-        {
-            let mut pp = new_particles.borrow_mut();
-            for part in pp.drain(..) {
-                particles.add(part);
-            }
-        }
-
-        // Step the world
-        let player_position = player.borrow_mut().get_position();
-        println!("{:?}", player_position);
-        if player_position.y < -300.0 && endtime == 0 {
-            endtime = sdl_timer.ticks();
-            mixer.play(&*end_sound, ()).chain_err(|| "failed to play end sound")?;
-        }
-        *on_ground.borrow_mut() = false;
-        world.borrow_mut().step(dt,
-                                player_position,
-                                input.action,
-                                (settings.get_f32("heightaction_power"),
-                                 settings.get_f32("heightaction_damp"),
-                                 settings.get_f32("heightaction_sin")));
-        particles.step(dt);
-
-        for &body_id in del_diamonds.borrow().iter() {
-            let mut w = world.borrow_mut();
-            {
-                let body = w.bodies().iter().find(|&x| x.borrow().id == body_id).unwrap();
-                if let Some(idx) = body.borrow().collide_sound {
-                    mixer.play(&*diamond_sounds[idx], ())
-                        .chain_err(|| "failed to play diamond sound")?;
-                }
-                if body.borrow().id == ebin_powerup {
-                    force_mag_end = sdl_timer.ticks() + force_mag_duration;
+                let force_mag = if last_t >= force_mag_end {
+                    10.0 * 2.0
                 } else {
-                    // normal prize diamond
-                    // TODO enum these
-                    diams_got += 1;
+                    31.4 * 2.0
+                };
+
+                if input.jump && allow_jump && *on_ground.borrow() {
+                    force_y = 3.14 * GRAVITY * force_mag;
+                    times_jumped += 1;
+                    mixer.play(&jump_sound, (1.0 / (times_jumped as f32),))
+                        .chain_err(|| "failed to play jump sound")?;
+                    allow_jump = false;
+                } else if !input.jump {
+                    allow_jump = true;
                 }
-            }
-            w.del_body(body_id);
-            diamonds.borrow_mut().retain(|&x| x != body_id);
-            if diams_got == diams_tot {
-                endtime = sdl_timer.ticks();
-                let idx = if endtime % 1000 > 500 { 1 } else { 0 }; // random, lol
-                mixer.play(&*win_sounds[idx], ()).chain_err(|| "failed to play win sound")?;
-            }
-        }
-        del_diamonds.borrow_mut().clear();
 
-        let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
-                         Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
-        let camera_pos = player.borrow_mut().get_position() + Vec3::new(0.0, 3.0, 5.0) * camera_rot;
+                if input.reset_camera {
+                    camera.yaw = 0.0;
+                    camera.pitch = 0.0;
+                }
 
-        let zfar = 5000.0f32;
-        let znear_default = 0.01f32;
-        // FIXME
-        let znear = if true {
-            znear_default
-        } else {
-            let cam = camera_pos.to_point();
-            let ball = player.borrow_mut().get_position().to_point();
-            let cam_to_ball = (ball - cam).normalize();
-            let maxdep = (ball - cam).norm() - 1.0; // radius
+                if input.stop {
+                    player.borrow_mut().set_linear_velocity(na::zero());
+                }
 
-            // welp. doesn't return the closest first.
-            // TODO: put the ground in its own space maybe
-            let maxhits = 100usize;
+                camera.yaw += input.camera.x / 10.0;
+                camera.pitch += input.camera.y / 10.0;
+                camera.pitch = na::clamp(camera.pitch, -PI / 2.0, PI / 2.0);
 
-            let mut contacts = Vec::<ode::dContactGeom>::with_capacity(maxhits);
-            unsafe {
-                let ray = ode::dCreateRay(std::ptr::null_mut(), zfar as f64);
-                ode::dGeomRaySet(ray,
-                                 cam.x as f64,
-                                 cam.y as f64,
-                                 cam.z as f64,
-                                 cam_to_ball.x as f64,
-                                 cam_to_ball.y as f64,
-                                 cam_to_ball.z as f64);
-                let found = ode::dCollide(ray,
+                if curr_t - last_particle > 0.15 {
+                    last_particle = curr_t;
+
+                    particles.add(particle::Particle {
+                        position: Pnt3::new(0.0, 0.0, 0.0), // global world coordinate
+                        scale: Vec2::new(0.4, 0.4),
+                        velocity: Vec3::new(rand::random::<f32>() * 0.5,
+                                            2.5,
+                                            rand::random::<f32>() * 0.5),
+                        color: Vec4::new(0.0, 0.0, 1.0, 0.8),
+                        lifetime: Some(5.0),
+                        alive: 0.0,
+                        texture: 0,
+                    });
+                }
+
+                {
+                    let mut pp = new_particles.borrow_mut();
+                    for part in pp.drain(..) {
+                        particles.add(part);
+                    }
+                }
+
+                // Step the world
+                let player_position = player.borrow_mut().get_position();
+                println!("{:?}", player_position);
+                if player_position.y < -300.0 && endtime == 0 {
+                    endtime = sdl_timer.ticks();
+                    mixer.play(&*end_sound, ()).chain_err(|| "failed to play end sound")?;
+                }
+                *on_ground.borrow_mut() = false;
+                world.borrow_mut().step(dt,
+                                        player_position,
+                                        input.action,
+                                        (settings.get_f32("heightaction_power"),
+                                         settings.get_f32("heightaction_damp"),
+                                         settings.get_f32("heightaction_sin")));
+                particles.step(dt);
+
+                for &body_id in del_diamonds.borrow().iter() {
+                    let mut w = world.borrow_mut();
+                    {
+                        let body = w.bodies().iter().find(|&x| x.borrow().id == body_id).unwrap();
+                        if let Some(idx) = body.borrow().collide_sound {
+                            mixer.play(&*diamond_sounds[idx], ())
+                                .chain_err(|| "failed to play diamond sound")?;
+                        }
+                        if body.borrow().id == ebin_powerup {
+                            force_mag_end = sdl_timer.ticks() + force_mag_duration;
+                        } else {
+                            // normal prize diamond
+                            // TODO enum these
+                            diams_got += 1;
+                        }
+                    }
+                    w.del_body(body_id);
+                    diamonds.borrow_mut().retain(|&x| x != body_id);
+                    if diams_got == diams_tot {
+                        endtime = sdl_timer.ticks();
+                        let idx = if endtime % 1000 > 500 { 1 } else { 0 }; // random, lol
+                        mixer.play(&*win_sounds[idx], ()).chain_err(|| "failed to play win sound")?;
+                    }
+                }
+                del_diamonds.borrow_mut().clear();
+
+                let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
+                                 Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
+                let camera_pos = player.borrow_mut().get_position() +
+                                 Vec3::new(0.0, 3.0, 5.0) * camera_rot;
+
+                let zfar = 5000.0f32;
+                let znear_default = 0.01f32;
+                // FIXME
+                let znear = if true {
+                    znear_default
+                } else {
+                    let cam = camera_pos.to_point();
+                    let ball = player.borrow_mut().get_position().to_point();
+                    let cam_to_ball = (ball - cam).normalize();
+                    let maxdep = (ball - cam).norm() - 1.0; // radius
+
+                    // welp. doesn't return the closest first.
+                    // TODO: put the ground in its own space maybe
+                    let maxhits = 100usize;
+
+                    let mut contacts = Vec::<ode::dContactGeom>::with_capacity(maxhits);
+                    unsafe {
+                        let ray = ode::dCreateRay(std::ptr::null_mut(), zfar as f64);
+                        ode::dGeomRaySet(ray,
+                                         cam.x as f64,
+                                         cam.y as f64,
+                                         cam.z as f64,
+                                         cam_to_ball.x as f64,
+                                         cam_to_ball.y as f64,
+                                         cam_to_ball.z as f64);
+                        let found = ode::dCollide(ray,
                                           world.borrow_mut().ode_space() as ode::dGeomID,
                                           maxhits as i32,
                                           contacts.as_mut_ptr(),
                                           std::mem::size_of::<ode::dContactGeom>() as i32) as
                             usize;
-                contacts.set_len(found);
-                ode::dGeomDestroy(ray);
-            }
+                        contacts.set_len(found);
+                        ode::dGeomDestroy(ray);
+                    }
 
-            let eps = 0.001;
+                    let eps = 0.001;
 
-            let mut dep = maxdep + eps;
-            for c in contacts {
-                if (c.depth as f32) < dep {
-                    dep = c.depth as f32;
+                    let mut dep = maxdep + eps;
+                    for c in contacts {
+                        if (c.depth as f32) < dep {
+                            dep = c.depth as f32;
+                        }
+                    }
+                    // closer than depth to the player ball surface? cut everything to be able to see when
+                    // camera goes inside walls or other objects
+                    if dep < maxdep - eps {
+                        dep
+                    } else {
+                        znear_default
+                    }
+                };
+
+                if *on_ground.borrow() {
+                    force_x += force_mag * input.player.x;
+                    force_z += force_mag * input.player.y;
                 }
-            }
-            // closer than depth to the player ball surface? cut everything to be able to see when
-            // camera goes inside walls or other objects
-            if dep < maxdep - eps {
-                dep
-            } else {
-                znear_default
-            }
-        };
 
-        if *on_ground.borrow() {
-            force_x += force_mag * input.player.x;
-            force_z += force_mag * input.player.y;
-        }
+                // impulse based:
+                player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
 
-        // impulse based:
-        player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
+                // angular momentum based control:
+                player.borrow_mut().add_torque(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
 
-        // angular momentum based control:
-        player.borrow_mut().add_torque(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
+                fov = (fov + input.zoom).max(PI / 8.0).min(7.0 / 8.0 * PI);
 
-        fov = (fov + input.zoom).max(PI / 8.0).min(7.0 / 8.0 * PI);
+                let projection = na::Perspective3::new(display_width as f32 /
+                                                       display_height as f32,
+                                                       fov,
+                                                       znear,
+                                                       zfar)
+                    .to_matrix();
 
-        let projection = na::Perspective3::new(display_width as f32 / display_height as f32,
-                                               fov,
-                                               znear,
-                                               zfar)
-            .to_matrix();
+                // iso is rotation followed by translation, can't use it directly just like that
+                let cam_rotate = Iso3::from_rotation_matrix(na::zero(), camera_rot)
+                    .to_homogeneous();
+                let cam_translate = Iso3::new(-camera_pos, na::zero()).to_homogeneous();
+                let cam_view = cam_rotate * cam_translate;
 
-        // iso is rotation followed by translation, can't use it directly just like that
-        let cam_rotate = Iso3::from_rotation_matrix(na::zero(), camera_rot).to_homogeneous();
-        let cam_translate = Iso3::new(-camera_pos, na::zero()).to_homogeneous();
-        let cam_view = cam_rotate * cam_translate;
-
-        cube.draw(&mut target,
-                  &uniform! {
+                cube.draw(&mut target,
+                          &uniform! {
                     perspective: *projection.as_ref(),
                     modelview: *cam_rotate.as_ref(),
                     tex: &envmap
                   },
-                  &program_array,
-                  false,
-                  false)
-            .chain_err(|| "failed to draw cubemap")?;
+                          &program_array,
+                          false,
+                          false)
+                    .chain_err(|| "failed to draw cubemap")?;
 
-        let player_pos = player.borrow_mut().get_position();
+                let player_pos = player.borrow_mut().get_position();
 
-        for body in world.borrow().bodies() {
-            let model = body.borrow_mut().get_posrot_homogeneous();
-            let modelview = cam_view * model;
+                for body in world.borrow().bodies() {
+                    let model = body.borrow_mut().get_posrot_homogeneous();
+                    let modelview = cam_view * model;
 
-            let b = body.borrow_mut();
-            // i have no idea what i'm doing. this can't be right. thanks, compiler
-            if let (&Some(ref mesh), &Some(ref texture), ref shape) = (&b.mesh,
-                                                                       &b.texture,
-                                                                       &b.shape) {
-                let ref texture = **texture;
+                    let b = body.borrow_mut();
+                    // i have no idea what i'm doing. this can't be right. thanks, compiler
+                    if let (&Some(ref mesh), &Some(ref texture), ref shape) = (&b.mesh,
+                                                                               &b.texture,
+                                                                               &b.shape) {
+                        let ref texture = **texture;
 
-                let prog = match ***shape {
-                    body::BodyShape::HeightField => &program_terrain,
-                    _ => {
-                        match *texture {
-                            texture::Texture::Twod(_) => &program,
-                            texture::Texture::Array(_) => &program_array,
-                        }
-                    }
-                };
+                        let prog = match ***shape {
+                            body::BodyShape::HeightField => &program_terrain,
+                            _ => {
+                                match *texture {
+                                    texture::Texture::Twod(_) => &program,
+                                    texture::Texture::Array(_) => &program_array,
+                                }
+                            }
+                        };
 
-                mesh
+                        mesh
                 .borrow_mut().draw(&mut target,
                       &uniform! {
                       perspective: *projection.as_ref(),
@@ -855,82 +862,78 @@ fn run() -> Result<()> {
                       true,
                       true) // FIXME only do alpha rendering for ball
                 .chain_err(|| "failed to draw mesh")?;
-            }
-        }
+                    }
+                }
 
-        particles.draw(&mut target, *projection.as_ref(), *cam_view.as_ref())
-            .chain_err(|| "failed to render particles")?;
+                particles.draw(&mut target, *projection.as_ref(), *cam_view.as_ref())
+                    .chain_err(|| "failed to render particles")?;
 
-        render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
+                render(&mut target, &state, sdl_timer.ticks() as f32 / 1000.0);
 
-        nanovg.begin_frame(800, 600, 1.0);
-        nanovg.begin_path();
-        nanovg.move_to(10.0, 50.0);
-        nanovg.line_to(10.0, 100.0);
-        nanovg.line_to(400.0, 100.0);
-        nanovg.line_to(400.0, 50.0);
-        nanovg.fill_color(nanovg::Color::rgba(0, 0, 0, 128));
-        nanovg.fill();
+                nanovg.begin_frame(800, 600, 1.0);
+                nanovg.begin_path();
+                nanovg.move_to(10.0, 50.0);
+                nanovg.line_to(10.0, 100.0);
+                nanovg.line_to(400.0, 100.0);
+                nanovg.line_to(400.0, 50.0);
+                nanovg.fill_color(nanovg::Color::rgba(0, 0, 0, 128));
+                nanovg.fill();
 
-        nanovg.font_size(32.0);
-        nanovg.font_face("main");
-        nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
-        nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
-        let playtime = if endtime == 0 {
-            sdl_timer.ticks()
-        } else {
-            endtime
-        } as f32 / 1000.0;
-        nanovg.text(20.0,
-                    90.0,
-                    &format!("diamonds {}/{} time {:.2} s",
-                             diams_got,
-                             diams_tot,
-                             playtime));
+                nanovg.font_size(32.0);
+                nanovg.font_face("main");
+                nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
+                nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
+                let playtime = if endtime == 0 {
+                    sdl_timer.ticks()
+                } else {
+                    endtime
+                } as f32 / 1000.0;
+                nanovg.text(20.0,
+                            90.0,
+                            &format!("diamonds {}/{} time {:.2} s",
+                                     diams_got,
+                                     diams_tot,
+                                     playtime));
 
-        nanovg.end_frame();
+                nanovg.end_frame();
 
-        State::Game
-
-        },
-        State::Menu(sel) => {
-            nanovg.begin_frame(800, 600, 1.0);
-
-            nanovg.begin_path();
-            nanovg.move_to(10.0, [25.0, 75.0][sel]);
-            nanovg.line_to(10.0, [60.0, 110.0][sel]);
-            nanovg.line_to(200.0, [60.0, 110.0][sel]);
-            nanovg.line_to(200.0, [25.0, 75.0][sel]);
-            nanovg.fill_color(nanovg::Color::rgba(255, 0, 0, 128));
-            nanovg.fill();
-
-            nanovg.font_size(32.0);
-            nanovg.font_face("main");
-            nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
-            nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
-            nanovg.text(20.0,
-                    50.0,
-                    "Play");
-
-            nanovg.text(20.0,
-                    100.0,
-                    "Quit");
-
-            nanovg.end_frame();
-
-            if input.player.y < 0.0 {
-                State::Menu(0)
-            } else if input.player.y > 0.0 {
-                State::Menu(1)
-            } else if input.jump && sel == 0 {
-                mixer.play_music()?;
                 State::Game
-            } else if input.jump && sel == 1 {
-                break 'mainloop;
-            } else {
-                State::Menu(sel)
+
             }
-        }
+            State::Menu(sel) => {
+                nanovg.begin_frame(800, 600, 1.0);
+
+                nanovg.begin_path();
+                nanovg.move_to(10.0, [25.0, 75.0][sel]);
+                nanovg.line_to(10.0, [60.0, 110.0][sel]);
+                nanovg.line_to(200.0, [60.0, 110.0][sel]);
+                nanovg.line_to(200.0, [25.0, 75.0][sel]);
+                nanovg.fill_color(nanovg::Color::rgba(255, 0, 0, 128));
+                nanovg.fill();
+
+                nanovg.font_size(32.0);
+                nanovg.font_face("main");
+                nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
+                nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
+                nanovg.text(20.0, 50.0, "Play");
+
+                nanovg.text(20.0, 100.0, "Quit");
+
+                nanovg.end_frame();
+
+                if input.player.y < 0.0 {
+                    State::Menu(0)
+                } else if input.player.y > 0.0 {
+                    State::Menu(1)
+                } else if input.jump && sel == 0 {
+                    mixer.play_music()?;
+                    State::Game
+                } else if input.jump && sel == 1 {
+                    break 'mainloop;
+                } else {
+                    State::Menu(sel)
+                }
+            }
         };
 
         {

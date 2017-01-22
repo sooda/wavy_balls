@@ -72,7 +72,7 @@ impl Default for BodyConfig {
     fn default() -> Self {
         BodyConfig {
             fixed: false,
-            friction: 0.9,
+            friction: 0.4,
             restitution: 0.0,
             density: 1.0,
             category_bits: BODY_CATEGORY_OBJS_BIT,

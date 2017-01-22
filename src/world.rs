@@ -346,11 +346,13 @@ impl World {
             self.leftover_dt -= PHYS_DT;
             self.accum_dt += PHYS_DT;
 
-            if player_action || true {
+            let player_velocity = self.bodies[0].borrow_mut().get_linear_velocity();
+            let effect_position = player_position - player_velocity.normalize() * 8.0;
+            let amplitude = Vec3::new(player_velocity.x, 0.0, player_velocity.z).norm() / 200.0;
+
+            if player_action || amplitude > 0.03 {
+                let amplitude = amplitude - 0.03;
                 // self.heightfield_velocity[p] += 1.0;
-                let player_velocity = self.bodies[0].borrow_mut().get_linear_velocity();
-                let effect_position = player_position - player_velocity.normalize() * 7.0;
-                let amplitude = Vec3::new(player_velocity.x, 0.0, player_velocity.z).norm() / 300.0;
 
                 let offset =
                     effect_position +
@@ -374,10 +376,10 @@ impl World {
                 }
             }
 
-            const WAVE_DT: f32 = 0.1;
+            const WAVE_DT: f32 = 0.3;
 
             for v in self.heightfield_velocity.iter_mut() {
-                *v *= 0.997;
+                *v *= 0.999;
             }
 
             for x in 0..self.heightfield_resolution.0 {
@@ -487,7 +489,7 @@ impl World {
                 gpu_vert.normal[1] = normal.y;
                 gpu_vert.normal[2] = normal.z;
 
-                let offset = offset * 0.1;
+                let offset = offset * 0.2;
 
                 gpu_vert.color_tint[0] = offset;
                 gpu_vert.color_tint[1] = offset;
