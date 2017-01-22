@@ -295,7 +295,7 @@ fn run() -> Result<()> {
 
     let mut last_t = sdl_timer.ticks();
 
-    let scale = 1.0;
+    let scale = 4.0;
     let world = Rc::new(RefCell::new(world::World::new(scale)));
     let eh_texture = Rc::new(
         texture::load_texture(&display, "eh.png")
@@ -342,10 +342,10 @@ fn run() -> Result<()> {
             .heightfield_resolution;
 
         player.borrow_mut()
-            .set_position(Vec3::new(20.0 / scale - reso.0 as f32 * scale / 2.0,
-                                    world.borrow_mut().heightfield[((20.0 / scale) * reso.0 as f32 + 20.0 / scale) as usize] +
+            .set_position(Vec3::new(20.0 * scale - reso.0 as f32 * scale / 2.0,
+                                    world.borrow_mut().heightfield[((20.0 ) * reso.0 as f32 + 20.0 ) as usize] +
                                     5.0,
-                                    20.0 / scale - reso.1 as f32 * scale / 2.0));
+                                    20.0 * scale - reso.1 as f32 * scale / 2.0));
     }
 
     let diamonds = Rc::new(RefCell::new(Vec::new()));
@@ -519,9 +519,9 @@ fn run() -> Result<()> {
                                            contact.geom.normal[1] as f32,
                                            contact.geom.normal[2] as f32);
                     let coincide_vel = na::dot(&normal, &delta_vel).abs();
-                    let volume = (vol_scale * coincide_vel * coincide_vel).min(1.0);
+                    let volume = (0.04 * vol_scale * coincide_vel * coincide_vel).min(1.0);
                     // TODO: multiple different sounds for even more dramatic collisions
-                    if volume > 0.01 {
+                    if volume > 0.02 {
                         // bleh, can't ".chain_err(foo)?" this result in a handler
                         mixer.play(&*hit_sound, (volume,)).expect("failed to play hit sound");
 
@@ -736,7 +736,7 @@ fn run() -> Result<()> {
                 let camera_rot = Rotation3::new(Vec3::new(camera.pitch, 0.0, 0.0)) *
                                  Rotation3::new(Vec3::new(0.0, camera.yaw, 0.0));
                 let camera_pos = player.borrow_mut().get_position() +
-                                 Vec3::new(0.0, 3.0, 5.0) * camera_rot;
+                                 Vec3::new(0.0, 3.0, 5.0) * 2.0 * camera_rot;
 
                 let zfar = 5000.0f32;
                 let znear_default = 0.01f32;
@@ -795,9 +795,10 @@ fn run() -> Result<()> {
                     force_z += force_mag * input.player.y;
                 }
 
-                // impulse based:
                 player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
 
+                // impulse based:
+                player.borrow_mut().add_force(Vec3::new(force_x, 0.0, force_z) * 1.0 * camera_rot);
                 // angular momentum based control:
                 player.borrow_mut().add_torque(Vec3::new(force_z, 0.0, -force_x) * camera_rot);
 

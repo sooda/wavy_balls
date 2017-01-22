@@ -139,7 +139,9 @@ impl World {
 
         // Set damping parameters
         unsafe {
-            ode::dWorldSetDamping(ode_world, 0.002 /* linear */, 0.002 /* angular */);
+            ode::dWorldSetDamping(ode_world,
+                                  0.0015, // linear
+                                  0.0015 /* angular */);
         };
 
         World {
@@ -363,8 +365,8 @@ impl World {
                               self.heightfield_scale as f32 * 0.5);
 
 
-                for xx in -5..6 {
-                    for zz in -5..6 {
+                for xx in -3..4 {
+                    for zz in -3..4 {
                         let xcoord = (offset.x / self.heightfield_scale).floor() as i32 + xx;
                         let zcoord = (offset.z / self.heightfield_scale).floor() as i32 + zz;
                         let p = xcoord + zcoord * self.heightfield_resolution.0 as i32;
@@ -376,10 +378,10 @@ impl World {
                 }
             }
 
-            const WAVE_DT: f32 = 0.3;
+            const WAVE_DT: f32 = 0.1;
 
             for v in self.heightfield_velocity.iter_mut() {
-                *v *= 0.999;
+                *v *= 0.998;
             }
 
             for x in 0..self.heightfield_resolution.0 {

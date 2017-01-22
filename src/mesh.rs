@@ -104,7 +104,7 @@ impl Mesh {
         for x in 0..width {
             for z in 0..depth {
                 let hmp = (z * width + x) as usize;
-                let h = texture.data[hmp * 4] as f32 / 256.0 * 64.0 * scale;
+                let h = texture.data[hmp * 4] as f32 / 256.0 * 32.0 * scale;
                 let h = if h < 1.0 { -400.0 } else { h };
                 heightfield[hmp] = h;
             }
