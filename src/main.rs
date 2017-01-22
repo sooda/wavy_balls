@@ -132,9 +132,9 @@ static FRAGMENT_SHADER_TERRAIN: &'static str = r#"
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color.rgb = color.rgb * 0.4;
 
+        color.rgb *= max(0.2, dot(f_normal, vec3(0,1,0)));
         color.rgb += f_color_tint;
         color.rgb = clamp(color.rgb, 0.0, 1.0);
-        color.rgb *= max(0.2, dot(f_normal, vec3(0,1,0)));
         gl_FragColor = color;
     }
 "#;
@@ -357,11 +357,7 @@ fn run() -> Result<()> {
     let diam_mesh = Rc::new(
         RefCell::new(mesh::Mesh::from_obj(&display, "diamond.obj", false)
                      .chain_err(|| "failed to load diamond mesh")?));
-    let pup_mesh = Rc::new(
-        RefCell::new(mesh::Mesh::from_obj(&display, "powerup0.obj", false)
-                     .chain_err(|| "failed to load powerup mesh")?));
     let mut diamgears = Vec::new();
-    let mut pups = Vec::new();
     {
         let (width, depth) = (level_map.width as i32, level_map.height as i32);
 
@@ -370,34 +366,22 @@ fn run() -> Result<()> {
                 let hmp = (z * width + x) as usize;
                 let r = level_map.data[hmp * 4 + 0] as f32 / 256.0;
                 let g = level_map.data[hmp * 4 + 1] as f32 / 256.0;
-                let b = level_map.data[hmp * 4 + 2] as f32 / 256.0;
+                let _b = level_map.data[hmp * 4 + 2] as f32 / 256.0;
                 let px = x as f32 * scale;
                 let pz = z as f32 * scale;
 
-                let p = Vec3::new((px + 0.5 * scale) - scale * 0.5 * (width - 1) as f32,
-                                  r * 32.0 * scale + 1.5,
-                                  (pz + 0.5 * scale) - scale * 0.5 * (depth - 1) as f32);
-                if g > 0.5 || b > 0.5 {
-                    let diamond = if g > 0.5 {
-                        world.borrow_mut().add_body(
-                            diam_mesh.clone(),
-                            diam_texture.clone(),
-                            diam_shape.clone(),
-                            body::BodyConfig {
-                                collide_sound: Some(0),
-                                ..Default::default()
-                            })
-                    } else { // blue ones with green are still diams
-                        world.borrow_mut().add_body(
-                            pup_mesh.clone(),
-                            pup0_texture.clone(),
-                            diam_shape.clone(),
-                            body::BodyConfig { collide_sound: Some(1),
-                            ..Default::default() })
-                    };
-                    if g <= 0.5 {
-                        pups.push(diamond.borrow().id);
-                    }
+                if g > 0.5 {
+                    let p = Vec3::new((px + 0.5 * scale) - scale * 0.5 * (width - 1) as f32,
+                                      r * 32.0 * scale + 1.5,
+                                      (pz + 0.5 * scale) - scale * 0.5 * (depth - 1) as f32);
+                    println!("{:?}", p);
+                    let diamond = world.borrow_mut().add_body(diam_mesh.clone(),
+                                                              diam_texture.clone(),
+                                                              diam_shape.clone(),
+                                                              body::BodyConfig {
+                                                                  collide_sound: Some(0),
+                                                                  ..Default::default()
+                                                              });
                     diamond.borrow_mut().set_position(p);
                     diamonds.borrow_mut().push(diamond.borrow().id);
                     let mut gear = Gear::new(world.borrow_mut().ode_world(),
@@ -586,6 +570,16 @@ fn run() -> Result<()> {
         world.borrow_mut().add_contact_handler(Box::new(diamond_collision_handler));
     }
 
+    let body = world.borrow_mut().add_body(
+        Rc::new(RefCell::new(mesh::Mesh::from_obj(&display, "powerup0.obj", false)
+                             .chain_err(|| "failed to load powerup mesh")?)),
+                             pup0_texture.clone(),
+                             diam_shape.clone(),
+                             body::BodyConfig { collide_sound: Some(1), ..Default::default() });
+    body.borrow_mut().set_position(settings.get_vec3("pup0"));
+    diamonds.borrow_mut().push(body.borrow().id);
+    let ebin_powerup = body.borrow().id;
+
     let mut allow_jump = true;
 
     let mut last_particle = 0.0;
@@ -699,6 +693,7 @@ fn run() -> Result<()> {
 
                 // Step the world
                 let player_position = player.borrow_mut().get_position();
+                println!("{:?}", player_position);
                 if player_position.y < -300.0 && endtime == 0 {
                     endtime = sdl_timer.ticks();
                     mixer.play(&*end_sound, ()).chain_err(|| "failed to play end sound")?;
@@ -720,7 +715,7 @@ fn run() -> Result<()> {
                             mixer.play(&*diamond_sounds[idx], ())
                                 .chain_err(|| "failed to play diamond sound")?;
                         }
-                        if pups.contains(&body.borrow().id) {
+                        if body.borrow().id == ebin_powerup {
                             force_mag_end = sdl_timer.ticks() + force_mag_duration;
                         } else {
                             // normal prize diamond
@@ -795,10 +790,10 @@ fn run() -> Result<()> {
                     }
                 };
 
-                if *on_ground.borrow() {
-                    force_x += force_mag * input.player.x;
-                    force_z += force_mag * input.player.y;
-                }
+                // if *on_ground.borrow() {
+                force_x += force_mag * input.player.x;
+                force_z += force_mag * input.player.y;
+                // }
 
                 player.borrow_mut().add_force(Vec3::new(0.0, force_y, 0.0) * camera_rot);
 

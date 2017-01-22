@@ -139,9 +139,7 @@ impl World {
 
         // Set damping parameters
         unsafe {
-            ode::dWorldSetDamping(ode_world,
-                                  0.0015, // linear
-                                  0.0015 /* angular */);
+            ode::dWorldSetDamping(ode_world, 0.0015 /* linear */, 0.0015 /* angular */);
         };
 
         World {
@@ -441,9 +439,9 @@ impl World {
 
         let &mut World { ref mut landscape_mesh,
                          ref heightfield,
-                         ref heightfield_origin,
+                         // ref heightfield_origin,
                          ref heightfield_idx,
-                         // ref heightfield_velocity,
+                         ref heightfield_velocity,
                          ref heightfield_resolution,
                          .. } = self;
         let mut mesh = landscape_mesh.as_mut().unwrap().borrow_mut();
@@ -455,7 +453,7 @@ impl World {
 
                 use na::Norm;
                 let hi = heightfield_idx[index];
-                let offset = heightfield[hi] - heightfield_origin[hi];
+                // let offset = heightfield[hi] - heightfield_origin[hi];
                 // let velo = heightfield_velocity[hi];
 
                 // if offset.abs() < 0.01 {
@@ -490,6 +488,8 @@ impl World {
                 gpu_vert.normal[0] = normal.x;
                 gpu_vert.normal[1] = normal.y;
                 gpu_vert.normal[2] = normal.z;
+
+                let offset = heightfield_velocity[hi];
 
                 let offset = offset * 0.2;
 
