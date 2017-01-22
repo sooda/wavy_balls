@@ -310,6 +310,8 @@ fn run() -> Result<()> {
     }
 
     let diamonds = Rc::new(RefCell::new(Vec::new()));
+    let mut diams_tot = 0;
+    let mut diams_got = 0;
     let diam_shape = Rc::new(
         body::BodyShape::from_obj("diamond.obj")
         .chain_err(|| "failed to load diamond mesh for phys")?);
@@ -351,6 +353,7 @@ fn run() -> Result<()> {
                     gear.set_hinge_param(dParamFMax, 1000.0);
                     gear.set_hinge_param(dParamVel, 1.0);
                     diamgears.push(gear);
+                    diams_tot += 1;
                 }
             }
         }
@@ -632,6 +635,10 @@ fn run() -> Result<()> {
                 }
                 if body.borrow().id == ebin_powerup {
                     force_mag_end = sdl_timer.ticks() + force_mag_duration;
+                } else {
+                    // normal prize diamond
+                    // TODO enum these
+                    diams_got += 1;
                 }
             }
             w.del_body(body_id);
@@ -830,7 +837,7 @@ fn run() -> Result<()> {
         nanovg.font_face("main");
         nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
         nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
-        nanovg.text(20.0, 90.0, &format!("fgj17"));
+        nanovg.text(20.0, 90.0, &format!("diamonds {}/{}", diams_got, diams_tot));
 
         nanovg.end_frame();
 
