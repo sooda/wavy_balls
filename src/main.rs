@@ -73,15 +73,16 @@ static VERTEX_SHADER: &'static str = r#"
 
     uniform mat4 perspective;
     uniform mat4 modelview;
-    uniform float max_shadow;
 
     in vec3 position;
     in vec3 normal;
     in vec3 tex_coord;
+    in vec3 color_tint;
 
     out vec3 f_tex_coord;
     out vec3 f_position;
     out vec3 f_normal;
+    out vec3 f_color_tint;
 
     void main() {
         gl_Position = perspective * modelview * vec4(position, 1.0);
@@ -89,6 +90,7 @@ static VERTEX_SHADER: &'static str = r#"
         f_tex_coord = tex_coord;
         f_position = position;
         f_normal = normal;
+        f_color_tint = color_tint;
     }
 "#;
 
@@ -98,17 +100,41 @@ static FRAGMENT_SHADER: &'static str = r#"
     in vec3 f_tex_coord;
     in vec3 f_position;
     in vec3 f_normal;
+    in vec3 f_color_tint;
 
     uniform sampler2D tex;
     uniform vec3 player_pos;
-    uniform float max_shadow;
 
     void main() {
         vec4 color = texture(tex, f_tex_coord.xy);
         if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
             color.rgb = color.rgb * 0.4;
 
-        color.rgb *= max(1.0-max_shadow, dot(f_normal, vec3(0,1,0)));
+        gl_FragColor = color;
+    }
+"#;
+static FRAGMENT_SHADER_TERRAIN: &'static str = r#"
+    #version 140
+
+    in vec3 f_tex_coord;
+    in vec3 f_position;
+    in vec3 f_normal;
+    in vec3 f_color_tint;
+
+    uniform sampler2D tex;
+    uniform vec3 player_pos;
+
+    void main() {
+        if (f_position.y < 1.0) {
+            discard;
+        }
+        vec4 color = texture(tex, f_tex_coord.xy);
+        if (f_position.y < player_pos.y && length(player_pos.xz - f_position.xz) <= 1.0)
+            color.rgb = color.rgb * 0.4;
+
+        color.rgb += f_color_tint;
+        color.rgb = clamp(color.rgb, 0.0, 1.0);
+        color.rgb *= max(0.2, dot(f_normal, vec3(0,1,0)));
         gl_FragColor = color;
     }
 "#;
@@ -122,7 +148,6 @@ static FRAGMENT_SHADER_ARRAY: &'static str = r#"
 
     uniform sampler2DArray tex;
     uniform vec3 player_pos;
-    uniform float max_shadow;
 
     void main() {
         vec4 color = texture(tex, f_tex_coord);
@@ -422,6 +447,9 @@ fn run() -> Result<()> {
 
     let program = glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER, None)
         .unwrap();
+    let program_terrain =
+        glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER_TERRAIN, None)
+            .unwrap();
     let program_array =
         glium::Program::from_source(&display, VERTEX_SHADER, FRAGMENT_SHADER_ARRAY, None).unwrap();
 
@@ -740,45 +768,27 @@ fn run() -> Result<()> {
                   false)
             .chain_err(|| "failed to draw cubemap")?;
 
-        // if settings.get_u32("heightfield") == 1
-        /*{
-            let w = world.borrow();
-            let hf = &w.heightfield;
-            for v in hm_buf.map().iter_mut() {
-                let i = v.hmp as i32;
-                let hh = hf[i as usize];
-                let r = (i + 1) as usize;
-                let d = (i + w.heightfield_resolution) as usize;
-
-                let dx = hf.get(r).cloned().unwrap_or(hh) - hh;
-                let dz = hf.get(d).cloned().unwrap_or(hh) - hh;
-
-                let xv = Vec3::new(::MAP_SZ / ::MAP_RES as f32, dx, 0.0).normalize();
-                let zv = Vec3::new(0.0, dz, ::MAP_SZ / ::MAP_RES as f32).normalize();
-
-                let nor = zv.cross(&xv);
-
-                v.h = world.borrow().heightfield[v.hmp as usize];
-                v.nor = *nor.as_ref();
-            }
-        }*/
-
         let player_pos = player.borrow_mut().get_position();
 
         for body in world.borrow().bodies() {
             let model = body.borrow_mut().get_posrot_homogeneous();
             let modelview = cam_view * model;
 
-            // let body::Body { ref mesh, ref texture, .. } = *body.borrow_mut();
             let b = body.borrow_mut();
             // i have no idea what i'm doing. this can't be right. thanks, compiler
-            if let (&Some(ref mesh), &Some(ref texture), shaded) = (&b.mesh, &b.texture, b.shaded) {
-
+            if let (&Some(ref mesh), &Some(ref texture), ref shape) = (&b.mesh,
+                                                                       &b.texture,
+                                                                       &b.shape) {
                 let ref texture = **texture;
 
-                let prog = match *texture {
-                    texture::Texture::Twod(_) => &program,
-                    texture::Texture::Array(_) => &program_array,
+                let prog = match ***shape {
+                    body::BodyShape::HeightField => &program_terrain,
+                    _ => {
+                        match *texture {
+                            texture::Texture::Twod(_) => &program,
+                            texture::Texture::Array(_) => &program_array,
+                        }
+                    }
                 };
 
                 mesh
@@ -788,7 +798,6 @@ fn run() -> Result<()> {
                       modelview: *modelview.as_ref(),
                       tex: &*texture,
                       player_pos: *player_pos.as_ref(),
-                      max_shadow: if shaded { 0.5f32 } else { 0.0f32},
                   },
                       prog,
                       true,
@@ -816,7 +825,12 @@ fn run() -> Result<()> {
         nanovg.stroke_color(nanovg::Color::rgba(255, 255, 255, 255));
         nanovg.fill_color(nanovg::Color::rgba(255, 255, 255, 255));
         let playtime = sdl_timer.ticks() as f32 / 1000.0;
-        nanovg.text(20.0, 90.0, &format!("diamonds {}/{} time {:.2} s", diams_got, diams_tot, playtime));
+        nanovg.text(20.0,
+                    90.0,
+                    &format!("diamonds {}/{} time {:.2} s",
+                             diams_got,
+                             diams_tot,
+                             playtime));
 
         nanovg.end_frame();
 

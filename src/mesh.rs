@@ -16,13 +16,26 @@ pub struct Vertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
     pub tex_coord: [f32; 3],
+    pub color_tint: [f32; 3],
 }
-implement_vertex!(Vertex, position, normal, tex_coord);
+implement_vertex!(Vertex, position, normal, tex_coord, color_tint);
 
 impl std::cmp::PartialEq for Vertex {
     fn eq(&self, other: &Self) -> bool {
-        self.position == other.position && self.normal == other.normal &&
-        self.tex_coord == other.tex_coord
+
+        let px = self.position[0] - other.position[0];
+        let py = self.position[1] - other.position[1];
+        let pz = self.position[2] - other.position[2];
+
+        let pdiff = px * px + py * py + pz * pz;
+
+        let px = self.normal[0] - other.normal[0];
+        let py = self.normal[1] - other.normal[1];
+        let pz = self.normal[2] - other.normal[2];
+
+        let ndiff = px * px + py * py + pz * pz;
+
+        pdiff < 0.01 && ndiff < 0.01 && self.tex_coord == other.tex_coord
     }
 }
 
@@ -47,6 +60,7 @@ impl Mesh {
                 position: *p.as_ref(),
                 normal: *n.as_ref(),
                 tex_coord: *t.as_ref(),
+                color_tint: [0.0, 0.0, 0.0],
             };
             vs.push(v);
         }
@@ -56,6 +70,7 @@ impl Mesh {
 
         Ok(Mesh {
             // TODO consider glium::VertexBuffer::dynamic()
+            // buffer: glium::VertexBuffer::new(f, &vs).chain_err(|| "unable to create buffer")?,
             buffer: glium::VertexBuffer::new(f, &vs).chain_err(|| "unable to create buffer")?,
             orig_buffer: orig_buffer,
             gpu_clone: gpu_clone,
@@ -89,7 +104,7 @@ impl Mesh {
         for x in 0..width {
             for z in 0..depth {
                 let hmp = (z * width + x) as usize;
-                heightfield[hmp] = texture.data[hmp * 4] as f32 / 256.0 * 8.0 * scale;
+                heightfield[hmp] = texture.data[hmp * 4] as f32 / 256.0 * 64.0 * scale;
             }
         }
 

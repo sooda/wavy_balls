@@ -344,85 +344,79 @@ impl World {
             self.accum_dt += PHYS_DT;
 
             if player_action {
-                //self.heightfield_velocity[p] += 1.0;
+                // self.heightfield_velocity[p] += 1.0;
 
-                let offset = player_position + Vec3::new(
-                    self.heightfield_resolution.0 as f32 * self.heightfield_scale as f32 * 0.5,
-                    0.0,
-                    self.heightfield_resolution.1 as f32* self.heightfield_scale as f32 * 0.5,
-                    );
-                
-                
+                let offset =
+                    player_position +
+                    Vec3::new(self.heightfield_resolution.0 as f32 *
+                              self.heightfield_scale as f32 * 0.5,
+                              0.0,
+                              self.heightfield_resolution.1 as f32 *
+                              self.heightfield_scale as f32 * 0.5);
+
+
                 for xx in -10..11 {
                     for zz in -10..11 {
                         let xcoord = (offset.x / self.heightfield_scale).floor() as i32 + xx;
                         let zcoord = (offset.z / self.heightfield_scale).floor() as i32 + zz;
                         let p = xcoord + zcoord * self.heightfield_resolution.0 as i32;
                         if p >= 0 && (p as usize) < self.heightfield.len() {
-                            self.heightfield_velocity[p as usize] -= 0.5 * 1.0 / (1.0+(xx*xx+zz*zz) as f32);
+                            self.heightfield_velocity[p as usize] -=
+                                0.5 * 1.0 / (1.0 + (xx * xx + zz * zz) as f32);
                         }
                     }
                 }
             }
-            
-            const WAVE_DT: f32 = 0.2;
+
+            const WAVE_DT: f32 = 0.1;
 
             for v in self.heightfield_velocity.iter_mut() {
-                *v *= 0.999;
+                *v *= 0.997;
             }
 
             for x in 0..self.heightfield_resolution.0 {
-            for z in 0..self.heightfield_resolution.1 {
-                
-                let stride = self.heightfield_resolution.0 as usize;
-                let i = (x as usize + z as usize * stride) as usize;
-                
-                let neighs = 0.0
-                    + if x > 0 { self.heightfield[i-1] - self.heightfield_origin[i-1] } else { 0.0 }
-                    + if z > 0 { self.heightfield[i-stride]  - self.heightfield_origin[i-stride]} else { 0.0 }
-                    + if x+1 < self.heightfield_resolution.0 { self.heightfield[i+1] - self.heightfield_origin[i+1] } else { 0.0 }
-                    + if z+1 < self.heightfield_resolution.1 { self.heightfield[i+stride]  - self.heightfield_origin[i+stride]} else { 0.0 };
+                for z in 0..self.heightfield_resolution.1 {
 
-                self.heightfield_velocity[i] += (neighs/4.0 - (self.heightfield[i]-self.heightfield_origin[i])) * WAVE_DT;
-            }
-            }
+                    let stride = self.heightfield_resolution.0 as usize;
+                    let i = (x as usize + z as usize * stride) as usize;
 
-            for ((x, o), v) in self.heightfield.iter_mut().zip(self.heightfield_origin.iter()).zip(self.heightfield_velocity.iter_mut()) {
-                *v += (*o - *x) * WAVE_DT * 0.01;
-            }
-            for (x, v) in self.heightfield.iter_mut().zip(self.heightfield_velocity.iter()) {
-                *x += *v * WAVE_DT;
-            }
-            //for x in 0..self.heightfield_resolution.0 {
-            //    for z in 0..self.heightfield_resolution.1 {
-            //    }
-            //}
-
-            /*for x in 0..self.heightfield_resolution {
-                for z in 0..self.heightfield_resolution {
-                    let ix = (x + z * self.heightfield_resolution) as usize;
-                    let fx = x as f32;
-                    let fz = z as f32;
-
-                    let terrain = ((fx / self.heightfield_resolution as f32 * 20.0) +
-                                   self.accum_dt * 0.25)
-                        .sin() * 5.0;
-
-                    let effect = if player_action {
-                        p.0 *
-                        ((fx - ::MAP_SZ / 2.0 - player_position.x)
-                                .hypot(fz - ::MAP_SZ / 2.0 - player_position.z) *
-                         p.2)
-                            .sin()
+                    let neighs = 0.0 +
+                                 if x > 0 {
+                        self.heightfield[i - 1] - self.heightfield_origin[i - 1]
+                    } else {
+                        0.0
+                    } +
+                                 if z > 0 {
+                        self.heightfield[i - stride] - self.heightfield_origin[i - stride]
+                    } else {
+                        0.0
+                    } +
+                                 if x + 1 < self.heightfield_resolution.0 {
+                        self.heightfield[i + 1] - self.heightfield_origin[i + 1]
+                    } else {
+                        0.0
+                    } +
+                                 if z + 1 < self.heightfield_resolution.1 {
+                        self.heightfield[i + stride] - self.heightfield_origin[i + stride]
                     } else {
                         0.0
                     };
 
-                    self.heightfield_user[ix] *= p.1;
-                    self.heightfield_user[ix] += effect;
-                    self.heightfield[ix] = terrain + self.heightfield_user[ix];
+                    self.heightfield_velocity[i] +=
+                        (neighs / 4.0 - (self.heightfield[i] - self.heightfield_origin[i])) *
+                        WAVE_DT;
                 }
-            }*/
+            }
+
+            for ((x, o), v) in self.heightfield
+                .iter_mut()
+                .zip(self.heightfield_origin.iter())
+                .zip(self.heightfield_velocity.iter_mut()) {
+                *v += (*o - *x) * WAVE_DT * 0.001;
+            }
+            for (x, v) in self.heightfield.iter_mut().zip(self.heightfield_velocity.iter()) {
+                *x += *v * WAVE_DT;
+            }
             unsafe {
                 ode::dSpaceCollide(self.ode_space,
                                    self as *mut _ as *mut std::os::raw::c_void,
@@ -437,7 +431,9 @@ impl World {
 
         let &mut World { ref mut landscape_mesh,
                          ref heightfield,
+                         ref heightfield_origin,
                          ref heightfield_idx,
+                         // ref heightfield_velocity,
                          ref heightfield_resolution,
                          .. } = self;
         let mut mesh = landscape_mesh.as_mut().unwrap().borrow_mut();
@@ -448,8 +444,14 @@ impl World {
                 .enumerate() {
 
                 use na::Norm;
-
                 let hi = heightfield_idx[index];
+                let offset = heightfield[hi] - heightfield_origin[hi];
+                // let velo = heightfield_velocity[hi];
+
+                // if offset.abs() < 0.01 {
+                //    *gpu_vert = *orig_vert;
+                //    continue;
+                // }
 
                 let xi = heightfield_idx[index] % heightfield_resolution.0 as usize;
                 let zi = heightfield_idx[index] / heightfield_resolution.0 as usize;
@@ -479,46 +481,13 @@ impl World {
                 gpu_vert.normal[1] = normal.y;
                 gpu_vert.normal[2] = normal.z;
 
+                let offset = offset * 0.1;
+
+                gpu_vert.color_tint[0] = offset;
+                gpu_vert.color_tint[1] = offset;
+                gpu_vert.color_tint[2] = offset;
             }
         });
-        // for (orig_vert, gpu_vert) in orig_verts.iter().zip(new_verts.iter_mut()) {
-        //
-        // find position in heightfield
-        // let mut heightfield_origin = Vec3::new(-self.heightfield_size / 2.0,
-        // 0.0,
-        // -self.heightfield_size / 2.0);
-        //
-        // let stride = self.heightfield_resolution as f32 / self.heightfield_size;
-        //
-        // heightfield_origin += Vec3::new((player_position.x / stride).floor() * stride,
-        // (player_position.y / stride).floor() * stride,
-        // (player_position.z / stride).floor() * stride);
-        //
-        // let v = heightfield_origin -
-        // let v = Vec3::new(orig_vert.position[0],
-        // orig_vert.position[1],
-        // orig_vert.position[2]) -
-        // heightfield_origin;
-        //
-        // let heightfield_pos = Vec3::new(v.x / stride, v.y / stride, v.z / stride);
-        //
-        // let xi = heightfield_pos.x.floor() as i32;
-        // let zi = heightfield_pos.z.floor() as i32;
-        //
-        // if xi < 0 || xi >= self.heightfield_resolution || zi < 0 ||
-        // zi >= self.heightfield_resolution {
-        // continue;
-        // }
-        //
-        //
-        // let offset = self.heightfield[(xi + zi * self.heightfield_resolution) as usize];
-        //
-        // gpu_vert.position[0] = orig_vert.position[0];
-        // gpu_vert.position[1] = orig_vert.position[1] + offset;
-        // gpu_vert.position[2] = orig_vert.position[2];
-        // }
-        // });
-
     }
     pub fn bodies<'a>(&'a self) -> &'a Vec<Rc<RefCell<Body>>> {
         &self.bodies
